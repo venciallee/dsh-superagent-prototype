@@ -1,0 +1,153 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1180 700" role="img" aria-labelledby="d1t d1d">
+  <title id="d1t">代码架构：端口与适配器</title>
+  <desc id="d1d">src/core 是不做 I/O 的领域核心，只通过 6 个端口与外界交互。左侧的驱动方按角色拿到 Engine 的一个子集接口；右侧的被驱动方实现端口，其中会产生外部动作的三个端口只往持久化的 Effects 队列里写，真正的 I/O 在事务提交之后发生。</desc>
+  <style>
+    svg { --bg:#ffffff; --ink:#1f2328; --muted:#57606a; --code-fill:#f6f8fa; --code-stroke:#24292f; --core-fill:#f0f4ff; --core-stroke:#1f3b8a;
+          --llm-fill:#fff4e5; --llm-stroke:#b35900; --ext-fill:#eef6ff; --ext-stroke:#0969da; --store-fill:#eaf7ee; --store-stroke:#1a7f37; --edge:#424a53; --port:#1f3b8a;
+          font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Noto Sans CJK SC", "Source Han Sans SC", "Microsoft YaHei", "WenQuanYi Zen Hei", sans-serif; }
+    @media (prefers-color-scheme: dark) {
+      svg { --bg:#0d1117; --ink:#e6edf3; --muted:#9da7b3; --code-fill:#161b22; --code-stroke:#c9d1d9; --core-fill:#111a33; --core-stroke:#8fb0ff;
+            --llm-fill:#2b1d0c; --llm-stroke:#f0a14a; --ext-fill:#0c2340; --ext-stroke:#58a6ff; --store-fill:#0f2a1a; --store-stroke:#3fb950; --edge:#adbac7; --port:#8fb0ff; }
+    }
+    .bg { fill: var(--bg); }
+    .code { fill: var(--code-fill); stroke: var(--code-stroke); stroke-width: 1.4; }
+    .core { fill: var(--core-fill); stroke: var(--core-stroke); stroke-width: 3; }
+    .part { fill: var(--bg); stroke: var(--core-stroke); stroke-width: 1.2; }
+    .llm { fill: var(--llm-fill); stroke: var(--llm-stroke); stroke-width: 1.4; }
+    .ext { fill: var(--ext-fill); stroke: var(--ext-stroke); stroke-width: 1.4; }
+    .store { fill: var(--store-fill); stroke: var(--store-stroke); stroke-width: 1.4; }
+    .portdot { fill: var(--port); }
+    .t { fill: var(--ink); font-size: 13.5px; font-weight: 600; }
+    .tc { fill: var(--ink); font-size: 16px; font-weight: 700; }
+    .s { fill: var(--muted); font-size: 11.5px; }
+    .pl { fill: var(--port); font-size: 12px; font-weight: 700; }
+    .h { fill: var(--muted); font-size: 12.5px; font-weight: 700; letter-spacing: .5px; }
+    .e { stroke: var(--edge); stroke-width: 1.4; fill: none; marker-end: url(#arr); }
+    .ea { stroke: var(--edge); stroke-width: 1.4; fill: none; stroke-dasharray: 6 4; marker-end: url(#arr); }
+    .ah { fill: var(--edge); }
+  </style>
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="ah" d="M0,0 L10,5 L0,10 z"/></marker>
+  </defs>
+  <rect class="bg" x="0" y="0" width="1180" height="700"/>
+
+  <text class="h" x="20" y="28">驱动方：按角色拿到 Engine 的 Pick 子集</text>
+  <text class="h" x="830" y="28">被驱动方：实现 src/core/ports.ts 的端口</text>
+
+  <!-- Inbound adapters -->
+  <rect class="ext" x="20" y="44" width="345" height="62" rx="12"/>
+  <text class="t" x="34" y="68">Source 插件（GitHub / 飞书）</text>
+  <text class="s" x="34" y="88">EngineForSources：receive · bindThread · threadClosed</text>
+
+  <rect class="llm" x="20" y="122" width="345" height="62" rx="12"/>
+  <text class="t" x="34" y="146">主 Session 工具（14 个）+ 研判</text>
+  <text class="s" x="34" y="166">EngineForMainSession：decide · attach · reply · note</text>
+
+  <rect class="llm" x="20" y="200" width="345" height="62" rx="12"/>
+  <text class="t" x="34" y="224">执行器工具（6 个）+ DshExecutor 回调</text>
+  <text class="s" x="34" y="244">EngineForExecutor：report · handback · inputsRead…</text>
+
+  <rect class="code" x="20" y="278" width="345" height="62"/>
+  <text class="t" x="34" y="302">管理 API / 面板</text>
+  <text class="s" x="34" y="322">EngineForPeople：stopTicket · retryTicket · reevaluate</text>
+
+  <rect class="code" x="20" y="356" width="345" height="62"/>
+  <text class="t" x="34" y="380">Settings（策略保存）</text>
+  <text class="s" x="34" y="400">EngineForSettings：policyChanged</text>
+
+  <rect class="code" x="20" y="434" width="345" height="62"/>
+  <text class="t" x="34" y="458">Passes：每 2 秒一轮</text>
+  <text class="s" x="34" y="478">evaluateDue：到期评估、启动评估、唤醒工单</text>
+
+  <path class="e" d="M365,75 L432,210"/>
+  <path class="e" d="M365,153 L430,232"/>
+  <path class="e" d="M365,231 L428,255"/>
+  <path class="e" d="M365,309 L428,282"/>
+  <path class="e" d="M365,387 L430,305"/>
+  <path class="e" d="M365,465 L434,328"/>
+
+  <!-- Core hexagon -->
+  <polygon class="core" points="440,270 515,140 665,140 740,270 665,400 515,400"/>
+  <text class="tc" x="590" y="176" text-anchor="middle">领域核心 src/core</text>
+  <text class="s" x="590" y="196" text-anchor="middle">同步 · 每条命令一个事务 · 不做 I/O</text>
+  <rect class="part" x="510" y="210" width="160" height="30" rx="6"/>
+  <text class="t" x="590" y="230" text-anchor="middle">Engine（唯一写者）</text>
+  <text class="s" x="590" y="262" text-anchor="middle">Intake · Evals → Tickets</text>
+  <text class="s" x="590" y="282" text-anchor="middle">Assignments → Tickets · Replies</text>
+  <text class="s" x="590" y="302" text-anchor="middle">Tickets → Replies（叶子）</text>
+  <text class="s" x="590" y="330" text-anchor="middle">model · stage · ids · reasons</text>
+  <text class="s" x="590" y="350" text-anchor="middle">（依赖单向，无环）</text>
+
+  <!-- Ports on right edge -->
+  <circle class="portdot" cx="703" cy="205" r="5"/><circle class="portdot" cx="728" cy="248" r="5"/><circle class="portdot" cx="738" cy="270" r="5"/>
+  <circle class="portdot" cx="728" cy="292" r="5"/><circle class="portdot" cx="703" cy="335" r="5"/><circle class="portdot" cx="680" cy="375" r="5"/>
+
+  <!-- Outbound adapters -->
+  <path class="store" d="M830,50 a80,9 0 0,1 160,0 v44 a80,9 0 0,1 -160,0 z"/>
+  <path class="store" d="M830,50 a80,9 0 0,0 160,0" style="fill:none"/>
+  <text class="t" x="910" y="80" text-anchor="middle">Store（SQLite）</text>
+  <text class="pl" x="1000" y="68">Repositories</text>
+  <text class="s" x="1000" y="86">atomic + 仓储</text>
+
+  <rect class="code" x="830" y="122" width="160" height="46"/>
+  <text class="t" x="910" y="150" text-anchor="middle">settingsPolicy()</text>
+  <text class="pl" x="1000" y="140">Policy</text>
+  <text class="s" x="1000" y="158">每次读取都新建</text>
+
+  <rect class="code" x="830" y="186" width="160" height="46"/>
+  <text class="t" x="910" y="214" text-anchor="middle">SourceRegistry</text>
+  <text class="pl" x="1000" y="204">SourceScope</text>
+  <text class="s" x="1000" y="222">在不在听这个会话</text>
+
+  <rect class="code" x="830" y="250" width="160" height="46"/>
+  <text class="t" x="910" y="270" text-anchor="middle">MasterAssessor</text>
+  <text class="s" x="910" y="288" text-anchor="middle">写 assessment effect</text>
+  <text class="pl" x="1000" y="268">Assessor</text>
+  <text class="s" x="1000" y="286">request · release</text>
+
+  <rect class="code" x="830" y="314" width="160" height="46"/>
+  <text class="t" x="910" y="334" text-anchor="middle">DshExecutor</text>
+  <text class="s" x="910" y="352" text-anchor="middle">写 launch · delivery effect</text>
+  <text class="pl" x="1000" y="332">Executor</text>
+  <text class="s" x="1000" y="350">start · deliver · stop</text>
+
+  <rect class="code" x="830" y="378" width="160" height="46"/>
+  <text class="t" x="910" y="398" text-anchor="middle">Outbox</text>
+  <text class="s" x="910" y="416" text-anchor="middle">写回执 + reply effect</text>
+  <text class="pl" x="1000" y="396">Outbox</text>
+  <text class="s" x="1000" y="414">send · status · withdraw</text>
+
+  <path class="e" d="M703,205 L828,80"/>
+  <path class="e" d="M728,248 L828,146"/>
+  <path class="e" d="M738,270 L828,210"/>
+  <path class="e" d="M728,292 L828,274"/>
+  <path class="e" d="M703,335 L828,338"/>
+  <path class="e" d="M680,375 L828,400"/>
+
+  <!-- Effects band -->
+  <path class="store" d="M560,470 a300,12 0 0,1 600,0 v44 a300,12 0 0,1 -600,0 z"/>
+  <path class="store" d="M560,470 a300,12 0 0,0 600,0" style="fill:none"/>
+  <text class="t" x="860" y="500" text-anchor="middle">Effects 持久队列：assessment · launch · delivery · relay · notice · reply</text>
+  <text class="s" x="860" y="518" text-anchor="middle">上面三个适配器 + Sessions（relay · notice）在同一事务里入队；提交后才执行，失败指数退避</text>
+  <path class="ea" d="M910,424 L910,456"/>
+
+  <!-- Bottom: DSH runtime and external -->
+  <rect class="llm" x="560" y="572" width="400" height="98" rx="14"/>
+  <text class="t" x="760" y="598" text-anchor="middle">DeepSeek Harness 运行时</text>
+  <text class="s" x="760" y="620" text-anchor="middle">主 Session（路由 preset）+ 执行器 Session × N（执行器 preset）</text>
+  <text class="s" x="760" y="640" text-anchor="middle">agent loop · inbox：queue / steer / inject · job · subagent</text>
+  <text class="s" x="760" y="658" text-anchor="middle">会话事件（agent/status、user/message）回流为 Engine 的“事实”</text>
+  <rect class="ext" x="990" y="590" width="170" height="62" rx="31"/>
+  <text class="t" x="1075" y="616" text-anchor="middle">GitHub / 飞书</text>
+  <text class="s" x="1075" y="636" text-anchor="middle">gh / lark-cli</text>
+  <path class="ea" d="M760,528 L760,570"/>
+  <path class="ea" d="M1060,528 L1070,588"/>
+
+  <!-- Composition root note -->
+  <rect class="code" x="20" y="540" width="525" height="130" style="stroke-dasharray:4 3"/>
+  <text class="t" x="34" y="566">Runtime（src/app/runtime.ts）：组合根，不含领域规则</text>
+  <text class="s" x="34" y="590">锁住状态目录 → 打开 Store → 构造各部件 → 把端口实现注入 Engine</text>
+  <text class="s" x="34" y="610">DshExecutor / MasterAssessor 回调 Engine，用 getter 打破构造环</text>
+  <text class="s" x="34" y="630">启动：路由 → Setup → hook → 主 Session → 恢复派工 → Passes 与 Effects</text>
+  <text class="s" x="34" y="650">关闭：取消 turn → 等 Passes / Effects / agent → 关 Store → 释放锁</text>
+</svg>

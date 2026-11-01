@@ -1,0 +1,114 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 600" role="img" aria-labelledby="d3t d3d">
+  <title id="d3t">工单、派工与输入的三层状态机</title>
+  <desc id="d3d">工单只有 open 和 ended 两态，open 内部的阶段由派生规则计算；结束的工单可以被人的消息复活，被人叫停的不能。一个工单一生有多次派工，报告只写在当前派工上。输入经历未投递、已投递未读、已读三态；重试或重启时把已投递但未读的输入放回队首，工单结束时把未读也未处理的人类消息还给 Eval。</desc>
+  <style>
+    svg { --bg:#ffffff; --ink:#1f2328; --muted:#57606a; --code-fill:#f6f8fa; --code-stroke:#24292f; --edge:#424a53; --accent:#cf222e; --panel:#d0d7de;
+          font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Noto Sans CJK SC", "Source Han Sans SC", "Microsoft YaHei", "WenQuanYi Zen Hei", sans-serif; }
+    @media (prefers-color-scheme: dark) {
+      svg { --bg:#0d1117; --ink:#e6edf3; --muted:#9da7b3; --code-fill:#161b22; --code-stroke:#c9d1d9; --edge:#adbac7; --accent:#ff7b72; --panel:#30363d; }
+    }
+    .bg { fill: var(--bg); }
+    .panel { fill: none; stroke: var(--panel); stroke-width: 1.2; }
+    .st { fill: var(--code-fill); stroke: var(--code-stroke); stroke-width: 1.5; }
+    .st2 { fill: none; stroke: var(--code-stroke); stroke-width: 1; }
+    .held { fill: none; stroke: var(--muted); stroke-width: 1.3; stroke-dasharray: 5 4; }
+    .dot { fill: var(--ink); }
+    .title { fill: var(--ink); font-size: 15px; font-weight: 700; }
+    .t { fill: var(--ink); font-size: 13.5px; font-weight: 600; }
+    .s { fill: var(--muted); font-size: 12px; }
+    .lab { fill: var(--ink); font-size: 12px; }
+    .labA { fill: var(--accent); font-size: 12px; font-weight: 600; }
+    .e { stroke: var(--edge); stroke-width: 1.5; fill: none; marker-end: url(#arr); }
+    .eA { stroke: var(--accent); stroke-width: 1.6; fill: none; marker-end: url(#arrA); }
+    .ah { fill: var(--edge); } .ahA { fill: var(--accent); }
+  </style>
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="ah" d="M0,0 L10,5 L0,10 z"/></marker>
+    <marker id="arrA" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="ahA" d="M0,0 L10,5 L0,10 z"/></marker>
+  </defs>
+  <rect class="bg" x="0" y="0" width="1100" height="600"/>
+
+  <!-- Panel A: Ticket -->
+  <rect class="panel" x="10" y="10" width="1080" height="200" rx="8"/>
+  <text class="title" x="24" y="34">工单 Ticket：只有 open / ended 两态，阶段由规则派生</text>
+  <circle class="dot" cx="38" cy="112" r="7"/>
+  <path class="e" d="M45,112 L98,112"/>
+  <text class="lab" x="50" y="102">accept</text>
+  <rect class="st" x="100" y="52" width="350" height="128" rx="12"/>
+  <text class="t" x="116" y="76">open（没有 ended 字段）</text>
+  <text class="s" x="116" y="100">阶段 = ticketStage()，自上而下第一条命中：</text>
+  <text class="s" x="116" y="120">person / delivery → answer → review → blocked · failed</text>
+  <text class="s" x="116" y="140">→ working / queued → idle → working</text>
+  <text class="s" x="116" y="164">读时计算、不落库，永远与事实一致</text>
+
+  <rect class="st" x="770" y="48" width="300" height="70" rx="12"/>
+  <text class="t" x="786" y="72">ended</text>
+  <text class="s" x="786" y="94">completed · merged · closed · dropped</text>
+  <text class="s" x="786" y="110">订阅保留，Mandate 不撤销</text>
+  <rect class="st" x="770" y="132" width="300" height="62" rx="12"/>
+  <rect class="st2" x="774" y="136" width="292" height="54" rx="9"/>
+  <text class="t" x="786" y="158">ended：stopped（终态）</text>
+  <text class="s" x="786" y="178">Mandate 撤回，此后什么都收不到</text>
+
+  <path class="e" d="M450,70 L768,70"/>
+  <text class="lab" x="462" y="62">ready 且无 PR · dropped · 自己开的 PR 全部关闭</text>
+  <path class="eA" d="M768,104 L452,104"/>
+  <text class="labA" x="466" y="124">人在自己的线程上发言 + revalidate 通过</text>
+  <text class="labA" x="466" y="140">（Tickets.wake，不经 Eval）</text>
+  <path class="e" d="M450,166 L768,166"/>
+  <text class="lab" x="462" y="186">人 stop（面板命令，或经 Gate 的 explicit 消息）</text>
+
+  <!-- Panel B: Assignment -->
+  <rect class="panel" x="10" y="222" width="1080" height="130" rx="8"/>
+  <text class="title" x="24" y="246">派工 Assignment：一个工单一生可以有多次，报告只写在当前这次上</text>
+  <rect class="st" x="40" y="268" width="160" height="58" rx="12"/>
+  <text class="t" x="120" y="292" text-anchor="middle">pending</text>
+  <text class="s" x="120" y="312" text-anchor="middle">launch effect 排队中</text>
+  <rect class="st" x="350" y="268" width="160" height="58" rx="12"/>
+  <text class="t" x="430" y="292" text-anchor="middle">running</text>
+  <text class="s" x="430" y="312" text-anchor="middle">会话在跑或在等输入</text>
+  <rect class="st" x="660" y="268" width="160" height="58" rx="12"/>
+  <rect class="st2" x="664" y="272" width="152" height="50" rx="9"/>
+  <text class="t" x="740" y="292" text-anchor="middle">ended</text>
+  <text class="s" x="740" y="312" text-anchor="middle">endedReason 记原因</text>
+  <path class="e" d="M200,297 L348,297"/>
+  <text class="lab" x="210" y="289">assignmentStarted</text>
+  <path class="e" d="M510,297 L658,297"/>
+  <text class="lab" x="520" y="289">retry · 重启 · 工单结束</text>
+  <text class="s" x="840" y="282">报告：progress · waiting · ready</text>
+  <text class="s" x="840" y="300">· blocked · failed · dropped</text>
+  <text class="s" x="840" y="318">blocked / failed 之后自动消息不再投递，</text>
+  <text class="s" x="840" y="336">直到人发言或重试（waitsForPerson）</text>
+
+  <!-- Panel C: Input delivery -->
+  <rect class="panel" x="10" y="364" width="1080" height="226" rx="8"/>
+  <text class="title" x="24" y="388">输入 Input：每条都有确定性 id，投递与“读到”分开记录</text>
+  <rect class="held" x="30" y="408" width="200" height="62"/>
+  <text class="t" x="130" y="432" text-anchor="middle">只记录、不投递</text>
+  <text class="s" x="130" y="452" text-anchor="middle">自动消息 + 工单在等人</text>
+  <rect class="st" x="280" y="408" width="180" height="62" rx="12"/>
+  <text class="t" x="370" y="432" text-anchor="middle">undelivered</text>
+  <text class="s" x="370" y="452" text-anchor="middle">在 ticket.undelivered 里</text>
+  <rect class="st" x="560" y="408" width="200" height="62" rx="12"/>
+  <text class="t" x="660" y="432" text-anchor="middle">已投递，未读</text>
+  <text class="s" x="660" y="452" text-anchor="middle">readAt = null，deliveredTo = 派工</text>
+  <rect class="st" x="860" y="408" width="200" height="62" rx="12"/>
+  <text class="t" x="960" y="432" text-anchor="middle">已读</text>
+  <text class="s" x="960" y="452" text-anchor="middle">readAt = 时间</text>
+  <path class="e" d="M230,439 L278,439"/>
+  <text class="lab" x="232" y="462">addInput</text>
+  <path class="e" d="M460,430 L558,430"/>
+  <text class="lab" x="468" y="420">delivery：steer</text>
+  <path class="e" d="M760,430 L858,430"/>
+  <text class="lab" x="764" y="420">会话写入历史</text>
+  <text class="s" x="766" y="452">user/message</text>
+  <path class="eA" d="M600,470 C600,500 420,500 420,472"/>
+  <text class="labA" x="430" y="506">重试 / 重启：未读的放回队首（requeueUntaken）</text>
+  <path class="eA" d="M370,470 L370,540 L520,540"/>
+  <path class="eA" d="M700,470 L700,540 L640,540"/>
+  <rect class="held" x="522" y="522" width="116" height="38"/>
+  <text class="t" x="580" y="546" text-anchor="middle">回流 Eval</text>
+  <text class="labA" x="660" y="560">工单结束时：人的消息若未读、</text>
+  <text class="labA" x="660" y="576">也没 ack / 回答 / 交回，且无人认领（letGo）</text>
+  <text class="labA" x="230" y="560">从未投递的也一样</text>
+</svg>

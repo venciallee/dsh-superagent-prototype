@@ -1,0 +1,108 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1120 1040" role="img" aria-labelledby="d2t d2d">
+  <title id="d2t">一条明确请求从 @ 到合并的时序</title>
+  <desc id="d2d">九个编号的 SQLite 事务把流程切成九段；每段事务只写状态和待办，所有对外动作（发确认、启动执行器、投递输入、转达结果）都由 Effects 在事务提交后执行，执行结果再作为事实回到 Engine。</desc>
+  <style>
+    svg { --bg:#ffffff; --ink:#1f2328; --muted:#57606a; --code-fill:#f6f8fa; --code-stroke:#24292f; --llm-fill:#fff4e5; --llm-stroke:#b35900;
+          --ext-fill:#eef6ff; --ext-stroke:#0969da; --store-fill:#eaf7ee; --store-stroke:#1a7f37; --edge:#424a53; --accent:#cf222e; --life:#8c959f; --core-stroke:#1f3b8a; --core-fill:#f0f4ff;
+          font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Noto Sans CJK SC", "Source Han Sans SC", "Microsoft YaHei", "WenQuanYi Zen Hei", sans-serif; }
+    @media (prefers-color-scheme: dark) {
+      svg { --bg:#0d1117; --ink:#e6edf3; --muted:#9da7b3; --code-fill:#161b22; --code-stroke:#c9d1d9; --llm-fill:#2b1d0c; --llm-stroke:#f0a14a;
+            --ext-fill:#0c2340; --ext-stroke:#58a6ff; --store-fill:#0f2a1a; --store-stroke:#3fb950; --edge:#adbac7; --accent:#ff7b72; --life:#6e7681; --core-stroke:#8fb0ff; --core-fill:#111a33; }
+    }
+    .bg { fill: var(--bg); }
+    .code { fill: var(--code-fill); stroke: var(--code-stroke); stroke-width: 1.4; }
+    .core { fill: var(--core-fill); stroke: var(--core-stroke); stroke-width: 2.5; }
+    .llm { fill: var(--llm-fill); stroke: var(--llm-stroke); stroke-width: 1.4; }
+    .llm2 { fill: none; stroke: var(--llm-stroke); stroke-width: 1; }
+    .ext { fill: var(--ext-fill); stroke: var(--ext-stroke); stroke-width: 1.4; }
+    .store { fill: var(--store-fill); stroke: var(--store-stroke); stroke-width: 1.4; }
+    .life { stroke: var(--life); stroke-width: 1.2; stroke-dasharray: 4 4; }
+    .t { fill: var(--ink); font-size: 13.5px; font-weight: 600; }
+    .lab { fill: var(--ink); font-size: 12px; }
+    .s { fill: var(--muted); font-size: 11.5px; }
+    .tx { fill: var(--accent); font-size: 11.5px; font-weight: 700; }
+    .txc { fill: var(--bg); stroke: var(--accent); stroke-width: 1.5; }
+    .phase { fill: var(--muted); font-size: 12px; font-weight: 700; }
+    .band { fill: var(--code-fill); opacity: .55; }
+    .e { stroke: var(--edge); stroke-width: 1.4; fill: none; marker-end: url(#arr); }
+    .ea { stroke: var(--edge); stroke-width: 1.4; fill: none; stroke-dasharray: 6 4; marker-end: url(#arr); }
+    .ah { fill: var(--edge); }
+  </style>
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="ah" d="M0,0 L10,5 L0,10 z"/></marker>
+  </defs>
+  <rect class="bg" x="0" y="0" width="1120" height="1040"/>
+
+  <!-- phase bands -->
+  <rect class="band" x="0" y="96" width="1120" height="262"/>
+  <rect class="band" x="0" y="600" width="1120" height="190"/>
+  <text class="phase" x="1110" y="114" text-anchor="end">① 接入</text>
+  <text class="phase" x="1110" y="376" text-anchor="end">② 启动</text>
+  <text class="phase" x="1110" y="618" text-anchor="end">③ PR 反馈</text>
+  <text class="phase" x="1110" y="808" text-anchor="end">④ 交付</text>
+
+  <!-- lifeline heads -->
+  <rect class="ext" x="20" y="20" width="110" height="48" rx="24"/><text class="t" x="75" y="49" text-anchor="middle">GitHub</text>
+  <rect class="code" x="160" y="20" width="120" height="48"/><text class="t" x="220" y="42" text-anchor="middle">Source 插件</text><text class="s" x="220" y="60" text-anchor="middle">github-watch</text>
+  <rect class="core" x="310" y="20" width="150" height="48"/><text class="t" x="385" y="42" text-anchor="middle">Engine</text><text class="s" x="385" y="60" text-anchor="middle">+ SQLite 事务</text>
+  <rect class="store" x="490" y="20" width="120" height="48"/><text class="t" x="550" y="42" text-anchor="middle">Effects</text><text class="s" x="550" y="60" text-anchor="middle">提交后执行</text>
+  <rect class="llm" x="640" y="20" width="130" height="48" rx="10"/><rect class="llm2" x="643" y="23" width="124" height="42" rx="8"/><text class="t" x="705" y="49" text-anchor="middle">主 Session</text>
+  <rect class="code" x="800" y="20" width="120" height="48"/><text class="t" x="860" y="49" text-anchor="middle">DshExecutor</text>
+  <rect class="llm" x="950" y="20" width="150" height="48" rx="10"/><rect class="llm2" x="953" y="23" width="144" height="42" rx="8"/><text class="t" x="1025" y="49" text-anchor="middle">执行器 Session</text>
+
+  <line class="life" x1="75" y1="68" x2="75" y2="1020"/>
+  <line class="life" x1="220" y1="68" x2="220" y2="1020"/>
+  <line class="life" x1="385" y1="68" x2="385" y2="1020"/>
+  <line class="life" x1="550" y1="68" x2="550" y2="1020"/>
+  <line class="life" x1="705" y1="68" x2="705" y2="1020"/>
+  <line class="life" x1="860" y1="68" x2="860" y2="1020"/>
+  <line class="life" x1="1025" y1="68" x2="1025" y2="1020"/>
+
+  <!-- ① intake & triage -->
+  <path class="e" d="M75,128 L218,128"/><text class="lab" x="82" y="121">轮询读到 @agent 评论</text>
+  <path class="e" d="M220,160 L383,160"/><text class="lab" x="228" y="153">receive(trigger)</text>
+  <circle class="txc" cx="398" cy="160" r="9"/><text class="tx" x="398" y="164" text-anchor="middle">1</text>
+  <text class="s" x="412" y="164">存一次 · 写去向 · 排进 Eval 队列</text>
+  <path class="e" d="M385,212 L548,212"/><text class="lab" x="424" y="226">assessment 行</text>
+  <circle class="txc" cx="398" cy="190" r="9"/><text class="tx" x="398" y="194" text-anchor="middle">2</text>
+  <text class="s" x="412" y="194">Passes：evaluateDue → Gate = explicit → 建 Evaluation</text>
+  <path class="ea" d="M550,246 L703,246"/><text class="lab" x="558" y="239">steer 候选卡片</text>
+  <path class="e" d="M550,272 L387,272"/><text class="lab" x="400" y="266">candidateDelivered：开始计时</text>
+  <path class="e" d="M705,320 L387,320"/><text class="lab" x="420" y="313">orchestrator_route：accept</text>
+  <circle class="txc" cx="398" cy="340" r="9"/><text class="tx" x="398" y="344" text-anchor="middle">3</text>
+  <text class="s" x="412" y="344">Decision · Mandate · Ticket · 订阅 · 派工 · 确认回执</text>
+
+  <!-- ② launch -->
+  <path class="ea" d="M550,394 L77,394"/><text class="lab" x="90" y="387">reply：发确认（Outbox → gh）</text>
+  <path class="ea" d="M550,432 L858,432"/><text class="lab" x="562" y="425">launch：先占工位</text>
+  <path class="e" d="M860,470 C900,470 900,490 862,490"/><text class="lab" x="872" y="462">prepare：git worktree</text>
+  <path class="e" d="M860,522 L1023,522"/><text class="lab" x="868" y="515">ensure + queue 派工消息</text>
+  <path class="e" d="M860,556 L387,556"/><text class="lab" x="480" y="549">assignmentStarted</text>
+  <circle class="txc" cx="398" cy="576" r="9"/><text class="tx" x="398" y="580" text-anchor="middle">4</text>
+  <text class="s" x="412" y="580">pending → running</text>
+
+  <!-- ③ PR feedback -->
+  <path class="e" d="M1025,632 C1065,632 1065,652 1027,652"/><text class="lab" x="900" y="625" text-anchor="end">ReAct：读码 · 改 · 测 · 推分支 · 开 PR</text>
+  <path class="e" d="M1025,682 L387,682"/><text class="lab" x="560" y="675">orchestrator_report(progress, pr) → claimPull</text>
+  <circle class="txc" cx="398" cy="700" r="9"/><text class="tx" x="398" y="704" text-anchor="middle">5</text>
+  <text class="s" x="412" y="704">bindThread：工单订阅 PR 线程</text>
+  <path class="e" d="M75,726 L218,726"/><text class="lab" x="82" y="719">CI 失败 / review</text>
+  <path class="e" d="M220,744 L383,744"/><text class="lab" x="228" y="738">receive</text>
+  <circle class="txc" cx="398" cy="760" r="9"/><text class="tx" x="398" y="764" text-anchor="middle">6</text>
+  <text class="s" x="412" y="764">扇出 Input（不经 Eval）+ delivery 行</text>
+  <path class="ea" d="M550,778 L1023,778"/><text class="lab" x="700" y="772">delivery：steer 输入</text>
+
+  <!-- ④ deliver & end -->
+  <path class="e" d="M1025,816 L387,816"/><text class="lab" x="600" y="809">user/message 事件 → inputsRead</text>
+  <path class="e" d="M1025,852 L387,852"/><text class="lab" x="600" y="845">orchestrator_report(ready)</text>
+  <circle class="txc" cx="398" cy="870" r="9"/><text class="tx" x="398" y="874" text-anchor="middle">7</text>
+  <text class="s" x="412" y="874">报告 + relay 行</text>
+  <path class="ea" d="M550,892 L703,892"/><text class="lab" x="558" y="885">relay 结果</text>
+  <path class="e" d="M705,922 L387,922"/><text class="lab" x="440" y="915">orchestrator_reply(result)</text>
+  <circle class="txc" cx="398" cy="940" r="9"/><text class="tx" x="398" y="944" text-anchor="middle">8</text>
+  <text class="s" x="412" y="944">result 回执 + reply 行 → 发到原对话</text>
+  <path class="e" d="M75,966 L218,966"/><text class="lab" x="82" y="959">人合并 PR</text>
+  <path class="e" d="M220,986 L383,986"/><text class="lab" x="228" y="980">threadClosed</text>
+  <circle class="txc" cx="398" cy="1004" r="9"/><text class="tx" x="398" y="1008" text-anchor="middle">9</text>
+  <text class="s" x="412" y="1008">工单 ended: merged → 提交后 executor.stop</text>
+</svg>
