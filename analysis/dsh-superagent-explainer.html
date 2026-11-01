@@ -1,0 +1,1712 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="zh-CN" xml:lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>dsh-superagent 深度拆解：把 Agent 的控制面从上下文里搬出来</title>
+  <style>
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      background-color: #1a1a1a;
+      border: none;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+    /* CSS for syntax highlighting */
+    pre > code.sourceCode { white-space: pre; position: relative; }
+    pre > code.sourceCode > span { line-height: 1.25; }
+    pre > code.sourceCode > span:empty { height: 1.2em; }
+    .sourceCode { overflow: visible; }
+    code.sourceCode > span { color: inherit; text-decoration: inherit; }
+    div.sourceCode { margin: 1em 0; }
+    pre.sourceCode { margin: 0; }
+    @media screen {
+    div.sourceCode { overflow: auto; }
+    }
+    @media print {
+    pre > code.sourceCode { white-space: pre-wrap; }
+    pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+    }
+    pre.numberSource code
+      { counter-reset: source-line 0; }
+    pre.numberSource code > span
+      { position: relative; left: -4em; counter-increment: source-line; }
+    pre.numberSource code > span > a:first-child::before
+      { content: counter(source-line);
+        position: relative; left: -1em; text-align: right; vertical-align: baseline;
+        border: none; display: inline-block;
+        -webkit-touch-callout: none; -webkit-user-select: none;
+        -khtml-user-select: none; -moz-user-select: none;
+        -ms-user-select: none; user-select: none;
+        padding: 0 4px; width: 4em;
+        color: #aaaaaa;
+      }
+    pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
+    div.sourceCode
+      {   }
+    @media screen {
+    pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+    }
+    code span.al { color: #ff0000; font-weight: bold; } /* Alert */
+    code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
+    code span.at { color: #7d9029; } /* Attribute */
+    code span.bn { color: #40a070; } /* BaseN */
+    code span.bu { color: #008000; } /* BuiltIn */
+    code span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
+    code span.ch { color: #4070a0; } /* Char */
+    code span.cn { color: #880000; } /* Constant */
+    code span.co { color: #60a0b0; font-style: italic; } /* Comment */
+    code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
+    code span.do { color: #ba2121; font-style: italic; } /* Documentation */
+    code span.dt { color: #902000; } /* DataType */
+    code span.dv { color: #40a070; } /* DecVal */
+    code span.er { color: #ff0000; font-weight: bold; } /* Error */
+    code span.ex { } /* Extension */
+    code span.fl { color: #40a070; } /* Float */
+    code span.fu { color: #06287e; } /* Function */
+    code span.im { color: #008000; font-weight: bold; } /* Import */
+    code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
+    code span.kw { color: #007020; font-weight: bold; } /* Keyword */
+    code span.op { color: #666666; } /* Operator */
+    code span.ot { color: #007020; } /* Other */
+    code span.pp { color: #bc7a00; } /* Preprocessor */
+    code span.sc { color: #4070a0; } /* SpecialChar */
+    code span.ss { color: #bb6688; } /* SpecialString */
+    code span.st { color: #4070a0; } /* String */
+    code span.va { color: #19177c; } /* Variable */
+    code span.vs { color: #4070a0; } /* VerbatimString */
+    code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+  </style>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+  :root { --bg:#ffffff; --ink:#1f2328; --muted:#57606a; --line:#d0d7de; --soft:#f6f8fa; --accent:#0969da; --quote:#eef6ff; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#0d1117; --ink:#e6edf3; --muted:#9da7b3; --line:#30363d; --soft:#161b22; --accent:#58a6ff; --quote:#0c2340; } }
+  html { background: var(--bg); }
+  body { margin: 0 auto; max-width: 920px; padding: 32px 22px 80px; color: var(--ink); background: var(--bg);
+    font: 16px/1.75 -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Noto Sans CJK SC", "Microsoft YaHei", "WenQuanYi Zen Hei", sans-serif; overflow-x: hidden; }
+  h1 { font-size: 30px; line-height: 1.3; margin: 8px 0 18px; }
+  h2 { font-size: 23px; margin-top: 48px; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
+  h3 { font-size: 18.5px; margin-top: 32px; }
+  a { color: var(--accent); }
+  p, li { word-break: break-word; }
+  blockquote { margin: 16px 0; padding: 8px 16px; background: var(--quote); border-left: 4px solid var(--accent); color: var(--ink); }
+  code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .88em; background: var(--soft); padding: .1em .35em; border-radius: 4px; }
+  pre { background: var(--soft); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; overflow-x: auto; line-height: 1.55; }
+  pre code { background: none; padding: 0; font-size: 13.5px; }
+  table { border-collapse: collapse; margin: 16px 0; font-size: 14.5px; display: block; overflow-x: auto; max-width: 100%; }
+  th, td { border: 1px solid var(--line); padding: 7px 10px; vertical-align: top; text-align: left; }
+  th { background: var(--soft); }
+  img { max-width: 100%; height: auto; display: block; margin: 18px auto 6px; border: 1px solid var(--line); border-radius: 8px; }
+  hr { border: none; border-top: 1px solid var(--line); margin: 36px 0; }
+  nav#TOC { background: var(--soft); border: 1px solid var(--line); border-radius: 8px; padding: 10px 18px; margin: 18px 0 28px; font-size: 14.5px; }
+  nav#TOC ul { padding-left: 18px; margin: 4px 0; }
+  nav#TOC > ul > li { margin: 2px 0; }
+  .sourceCode .co { color: var(--muted); }
+  .sourceCode .va { color: #b35900; } .sourceCode .st { color: #1a7f37; }
+  @media (prefers-color-scheme: dark) { .sourceCode .va { color: #f0a14a; } .sourceCode .st { color: #3fb950; } }
+  code span.kw, code span.cf { color: #cf222e; } @media (prefers-color-scheme: dark) { code span.kw, code span.cf { color: #ff7b72; } }
+  .diff-del { color: #cf222e; } .diff-add { color: #1a7f37; }
+  </style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">dsh-superagent 深度拆解：把 Agent
+的控制面从上下文里搬出来</h1>
+</header>
+<nav id="TOC" role="doc-toc">
+<ul>
+<li><a href="#1-这是什么" id="toc-1-这是什么">1. 这是什么</a></li>
+<li><a href="#2-它要解决什么问题" id="toc-2-它要解决什么问题">2.
+它要解决什么问题</a></li>
+<li><a href="#3-借来的锚it-服务台" id="toc-3-借来的锚it-服务台">3.
+借来的锚：IT 服务台</a></li>
+<li><a href="#4-四个轴逐一展开" id="toc-4-四个轴逐一展开">4.
+四个轴，逐一展开</a></li>
+<li><a href="#5-三条真实-trace" id="toc-5-三条真实-trace">5. 三条真实
+trace</a></li>
+<li><a href="#6-关键-insight作者押对的几个非显然判断"
+id="toc-6-关键-insight作者押对的几个非显然判断">6. 关键
+insight：作者押对的几个非显然判断</a></li>
+<li><a href="#7-亮点与代价以及不适用的地方"
+id="toc-7-亮点与代价以及不适用的地方">7.
+亮点与代价，以及不适用的地方</a></li>
+<li><a
+href="#8-问题二它和-deepseek-harness-有什么区别agent-架构是什么和-react-差在哪"
+id="toc-8-问题二它和-deepseek-harness-有什么区别agent-架构是什么和-react-差在哪">8.
+问题二：它和 DeepSeek Harness 有什么区别？Agent 架构是什么？和 ReAct
+差在哪？</a></li>
+<li><a href="#9-问题三它和-multi-agentagent-team-有什么区别"
+id="toc-9-问题三它和-multi-agentagent-team-有什么区别">9. 问题三：它和
+multi-agent、Agent Team 有什么区别？</a></li>
+<li><a href="#10-对你意味着什么" id="toc-10-对你意味着什么">10.
+对你意味着什么</a></li>
+<li><a href="#11-证据表与局限" id="toc-11-证据表与局限">11.
+证据表与局限</a></li>
+</ul>
+</nav>
+<blockquote>
+<p>基于 <code>dsh-superagent-prototype</code> 仓库（commit
+<code>6337fc8</code>）与 DeepSeek Harness
+主仓库（<code>deepseek-ai/deepseek-harness</code>，commit
+<code>ce7073d5</code>）的源码与文档。2026-11-01。</p>
+</blockquote>
+<p>设想一个 agent 挂在团队的 GitHub 仓库和飞书群里，7×24
+听消息：上午有人 @ 它改按钮文案，下午有人在 PR
+下补一句“顺便把颜色也改了”，半夜 CI 挂了，第二天 review bot
+又刷了十几条建议。拿一个长对话的 ReAct agent
+去扛，几天内上下文就会被压缩，“谁能指挥它”只靠一句 prompt
+守着，“谁在做什么”只存在模型的记忆里。dsh-superagent
+的判断是：<strong>常驻 agent
+难在控制面，而不在推理。谁能触发、凭什么授权、状态存在哪、谁来执行，这四件事交给确定性代码和数据库；LLM
+只做它擅长的两件事：读懂一段对话该怎么分诊，以及把一个边界清楚的工单做完。</strong></p>
+<p><strong>三个问题的答案在哪：</strong></p>
+<table>
+<thead>
+<tr class="header">
+<th>你的问题</th>
+<th>一句话答案</th>
+<th>详见</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>1. 技术架构、设计细节、流程原理、亮点</td>
+<td>确定性领域内核（Engine + SQLite）+ 1 个路由 LLM + N
+个工单执行器；所有对外动作先落盘再执行</td>
+<td>§1–§7</td>
+</tr>
+<tr class="even">
+<td>2. 和 DeepSeek Harness 的区别？Agent 架构？和 ReAct 的差异？</td>
+<td>两者不是同级产品：DSH 是运行时（单会话 agent loop +
+插件），superagent 是跑在上面的应用 bundle。每个执行器内部仍是
+ReAct，差异在<strong>外层循环</strong>由谁驱动、状态放哪、何时终止</td>
+<td>§8</td>
+</tr>
+<tr class="odd">
+<td>3. 和 multi-agent、Agent Team 的区别？</td>
+<td>它本身就是 multi-agent，区别在<strong>协调介质</strong>：Agent Team
+靠 LLM 之间的消息和任务板协调一次协作任务；superagent
+靠代码和数据库协调一个团队源源不断的事件流</td>
+<td>§9</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="1-这是什么">1. 这是什么</h2>
+<h3 id="11-名字解码">1.1 名字解码</h3>
+<ul>
+<li><strong>dsh = DeepSeek Harness。</strong> DeepSeek 开源的 agent
+harness（MIT，developer
+preview）。“Harness”指把模型套上工具、上下文、会话和权限的那层运行时外壳。它的设计口号是
+everything-is-a-plugin，跑在 Cordis
+插件运行时上：模型适配器、工具注册表、会话日志乃至 agent loop
+本身都是可替换的插件。</li>
+<li><strong>superagent。</strong> 名字来自 DeepSeek 的文章《Exploring
+Super-agent Design: Towards a More Autonomous Agent System》（README
+引用了它）。它指的不是更大的模型或更长的单个会话，而是一个<strong>能代表整个团队、常驻、自己接活</strong>的
+agent 系统。README 的定位原话：<em>“a proactive coding agent for one
+GitHub repository, packaged as a bundle for DeepSeek
+Harness”</em>。</li>
+<li><strong>prototype。</strong> 研究原型。README 明说它不是 DeepSeek
+官方产品，与内部版本和文章描述不完全一致，文章里的部分设计是未来方向，原型没有实现。</li>
+<li><strong>bundle。</strong> DSH 的分发格式，即一组 Cordis
+配置行加上它们挂载的代码。superagent 通过 <code>cordis.patch.yml</code>
+插入 3
+个插件（主插件、<code>github-watch</code>、<code>feishu-watch</code>）和
+2 个 agent preset。</li>
+</ul>
+<p>仓库自造了 13
+个领域名词。下表按本文的四个轴分组，每个名词后面紧跟它带来的后果。后文只用这些词。</p>
+<table>
+<thead>
+<tr class="header">
+<th>轴</th>
+<th>名词</th>
+<th>是什么 → 于是</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>触发</td>
+<td><strong>Source</strong>（来源）</td>
+<td>一个事件流（GitHub 或飞书）。它持有读位置，所以重启不会重放事件</td>
+</tr>
+<tr class="even">
+<td></td>
+<td><strong>Trigger</strong>（触发）</td>
+<td>一条不可变事件。同一 id 只存一次，所以接单天然幂等</td>
+</tr>
+<tr class="odd">
+<td></td>
+<td><strong>Thread</strong>（线程）</td>
+<td>按时间排的一串 Trigger（一个 Issue、PR 或飞书话题）。同一 Thread
+同时只跑一个评估，所以并发到达的消息会被并成一批判断</td>
+</tr>
+<tr class="even">
+<td>授权</td>
+<td><strong>Policy</strong>（策略）</td>
+<td>谁能发起工作、哪些规则允许主动干活。它带版本号（内容哈希），所以策略一改，进行中的评估全部作废重排</td>
+</tr>
+<tr class="odd">
+<td></td>
+<td><strong>Eval / Gate / Assessment</strong>（评估 / 准入 / 研判）</td>
+<td>Eval 是对一批 Trigger 的判断，分两层：Gate
+是纯代码，给出强度；Assessment 是 LLM
+研判，只用于主动发现的工作。所以模型永远看不到未经准入的请求</td>
+</tr>
+<tr class="even">
+<td></td>
+<td><strong>Mandate</strong>（授权书）</td>
+<td>接单时生成的不可变授权：策略版本、范围、强度、准入依据。它不随工单结束而失效，所以人后来补一句话可以原样复活工单</td>
+</tr>
+<tr class="odd">
+<td>状态</td>
+<td><strong>Ticket</strong>（工单）</td>
+<td>一个被授权的工作单元。它自己定义状态，不跟随会话状态，所以可以重试、换执行器、跨重启</td>
+</tr>
+<tr class="even">
+<td></td>
+<td><strong>Subscription</strong>（订阅）</td>
+<td>Ticket 与 Thread
+的多对多关系。订阅线程上的新消息直接扇出给工单，所以后续讨论不用再 @
+机器人</td>
+</tr>
+<tr class="odd">
+<td></td>
+<td><strong>Assignment</strong>（派工）</td>
+<td>工单与一次执行器运行的绑定。一个工单一生可以有多次派工，所以重试就是新开一次派工，目录和分支不变</td>
+</tr>
+<tr class="even">
+<td></td>
+<td><strong>Channel</strong>（渠道）</td>
+<td>Thread 的写端。确认、回答、结果都是写，所以所有对外发言走同一个有序
+outbox</td>
+</tr>
+<tr class="odd">
+<td>执行</td>
+<td><strong>主 Session</strong>（代码里叫
+<code>orchestrator</code>）</td>
+<td>常驻的路由 LLM 会话。它只分诊，不做技术判断</td>
+</tr>
+<tr class="even">
+<td></td>
+<td><strong>执行器 Session</strong>（代码里叫 <code>worker</code>）</td>
+<td>一个工单对应一个 DSH 会话和一个目录，是真正写代码、开 PR 的地方</td>
+</tr>
+</tbody>
+</table>
+<h3 id="12-一句话定义">1.2 一句话定义</h3>
+<p><strong>一个挂在团队 GitHub 仓库（和可选飞书群）上的常驻编码
+agent：外部消息先过一道纯代码的权限门，再由一个专职分诊的 LLM
+决定是否开成“工单”；每个工单交给一个独立的 LLM 会话，在独立的 git
+worktree 里做完，结果回到提需求的那段对话里。</strong></p>
+<h3 id="13-系统形状l0">1.3 系统形状（L0）</h3>
+<p><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMTAwIDYzMCIgcm9sZT0iaW1nIiBhcmlhLWxhYmVsbGVkYnk9ImwwdCBsMGQiPgogIDx0aXRsZSBpZD0ibDB0Ij5kc2gtc3VwZXJhZ2VudCDns7vnu5/lvaLnirbvvIhMMO+8iTwvdGl0bGU+CiAgPGRlc2MgaWQ9ImwwZCI+TExNIOWPquWHuueOsOWcqOS4pOWkhO+8mui3r+eUse+8iOS4uyBTZXNzaW9u77yJ5ZKM5omn6KGM77yI5q+P5Liq5bel5Y2V5LiA5Liq5omn6KGM5ZmoIFNlc3Npb27vvInjgILosIHog73op6blj5HjgIHosIHooqvmjojmnYPjgIHlt6XljZXlpITkuo7ku4DkuYjnirbmgIHvvIzlhajpg6jnlLHnoa7lrprmgKflhoXmoLggRW5naW5lIOWSjCBTUUxpdGUg5Yaz5a6a77yb5omA5pyJ56a75byA5YaF5qC455qE5Yqo5L2c6YO95YWI6JC955uY5YaN5byC5q2l5omn6KGM44CCPC9kZXNjPgogIDxzdHlsZT4KICAgIHN2ZyB7IC0tYmc6I2ZmZmZmZjsgLS1pbms6IzFmMjMyODsgLS1tdXRlZDojNTc2MDZhOyAtLWNvZGUtZmlsbDojZjZmOGZhOyAtLWNvZGUtc3Ryb2tlOiMyNDI5MmY7IC0tbGxtLWZpbGw6I2ZmZjRlNTsgLS1sbG0tc3Ryb2tlOiNiMzU5MDA7CiAgICAgICAgICAtLWV4dC1maWxsOiNlZWY2ZmY7IC0tZXh0LXN0cm9rZTojMDk2OWRhOyAtLXN0b3JlLWZpbGw6I2VhZjdlZTsgLS1zdG9yZS1zdHJva2U6IzFhN2YzNzsgLS1lZGdlOiM0MjRhNTM7IC0tYWNjZW50OiNjZjIyMmU7IC0tZnJhbWU6IzU3NjA2YTsKICAgICAgICAgIGZvbnQtZmFtaWx5OiAtYXBwbGUtc3lzdGVtLCBCbGlua01hY1N5c3RlbUZvbnQsICJQaW5nRmFuZyBTQyIsICJIaXJhZ2lubyBTYW5zIEdCIiwgIk5vdG8gU2FucyBDSksgU0MiLCAiU291cmNlIEhhbiBTYW5zIFNDIiwgIk1pY3Jvc29mdCBZYUhlaSIsICJXZW5RdWFuWWkgWmVuIEhlaSIsIHNhbnMtc2VyaWY7IH0KICAgIEBtZWRpYSAocHJlZmVycy1jb2xvci1zY2hlbWU6IGRhcmspIHsKICAgICAgc3ZnIHsgLS1iZzojMGQxMTE3OyAtLWluazojZTZlZGYzOyAtLW11dGVkOiM5ZGE3YjM7IC0tY29kZS1maWxsOiMxNjFiMjI7IC0tY29kZS1zdHJva2U6I2M5ZDFkOTsgLS1sbG0tZmlsbDojMmIxZDBjOyAtLWxsbS1zdHJva2U6I2YwYTE0YTsKICAgICAgICAgICAgLS1leHQtZmlsbDojMGMyMzQwOyAtLWV4dC1zdHJva2U6IzU4YTZmZjsgLS1zdG9yZS1maWxsOiMwZjJhMWE7IC0tc3RvcmUtc3Ryb2tlOiMzZmI5NTA7IC0tZWRnZTojYWRiYWM3OyAtLWFjY2VudDojZmY3YjcyOyAtLWZyYW1lOiM4Yjk0OWU7IH0KICAgIH0KICAgIC5iZyB7IGZpbGw6IHZhcigtLWJnKTsgfQogICAgLmNvZGUgeyBmaWxsOiB2YXIoLS1jb2RlLWZpbGwpOyBzdHJva2U6IHZhcigtLWNvZGUtc3Ryb2tlKTsgc3Ryb2tlLXdpZHRoOiAxLjU7IH0KICAgIC5mcmFtZSB7IGZpbGw6IG5vbmU7IHN0cm9rZTogdmFyKC0tZnJhbWUpOyBzdHJva2Utd2lkdGg6IDIuNTsgfQogICAgLmxsbSB7IGZpbGw6IHZhcigtLWxsbS1maWxsKTsgc3Ryb2tlOiB2YXIoLS1sbG0tc3Ryb2tlKTsgc3Ryb2tlLXdpZHRoOiAxLjU7IH0KICAgIC5sbG0yIHsgZmlsbDogbm9uZTsgc3Ryb2tlOiB2YXIoLS1sbG0tc3Ryb2tlKTsgc3Ryb2tlLXdpZHRoOiAxOyB9CiAgICAuZXh0IHsgZmlsbDogdmFyKC0tZXh0LWZpbGwpOyBzdHJva2U6IHZhcigtLWV4dC1zdHJva2UpOyBzdHJva2Utd2lkdGg6IDEuNTsgfQogICAgLnN0b3JlIHsgZmlsbDogdmFyKC0tc3RvcmUtZmlsbCk7IHN0cm9rZTogdmFyKC0tc3RvcmUtc3Ryb2tlKTsgc3Ryb2tlLXdpZHRoOiAxLjU7IH0KICAgIC50IHsgZmlsbDogdmFyKC0taW5rKTsgZm9udC1zaXplOiAxNXB4OyBmb250LXdlaWdodDogNjAwOyB9CiAgICAucyB7IGZpbGw6IHZhcigtLW11dGVkKTsgZm9udC1zaXplOiAxMi41cHg7IH0KICAgIC5sYWIgeyBmaWxsOiB2YXIoLS1pbmspOyBmb250LXNpemU6IDEyLjVweDsgfQogICAgLmxhYkEgeyBmaWxsOiB2YXIoLS1hY2NlbnQpOyBmb250LXNpemU6IDEyLjVweDsgZm9udC13ZWlnaHQ6IDYwMDsgfQogICAgLmggeyBmaWxsOiB2YXIoLS1tdXRlZCk7IGZvbnQtc2l6ZTogMTIuNXB4OyBmb250LXdlaWdodDogNjAwOyBsZXR0ZXItc3BhY2luZzogLjVweDsgfQogICAgLmUgeyBzdHJva2U6IHZhcigtLWVkZ2UpOyBzdHJva2Utd2lkdGg6IDEuNjsgZmlsbDogbm9uZTsgbWFya2VyLWVuZDogdXJsKCNhcnIpOyB9CiAgICAuZWEgeyBzdHJva2U6IHZhcigtLWVkZ2UpOyBzdHJva2Utd2lkdGg6IDEuNjsgZmlsbDogbm9uZTsgc3Ryb2tlLWRhc2hhcnJheTogNyA1OyBtYXJrZXItZW5kOiB1cmwoI2Fycik7IH0KICAgIC5lYiB7IHN0cm9rZTogdmFyKC0tYWNjZW50KTsgc3Ryb2tlLXdpZHRoOiAyOyBmaWxsOiBub25lOyBzdHJva2UtZGFzaGFycmF5OiAyIDQgMTAgNDsgbWFya2VyLWVuZDogdXJsKCNhcnJBKTsgfQogICAgLmFoIHsgZmlsbDogdmFyKC0tZWRnZSk7IH0gLmFoQSB7IGZpbGw6IHZhcigtLWFjY2VudCk7IH0KICA8L3N0eWxlPgogIDxkZWZzPgogICAgPG1hcmtlciBpZD0iYXJyIiB2aWV3Qm94PSIwIDAgMTAgMTAiIHJlZlg9IjkiIHJlZlk9IjUiIG1hcmtlcldpZHRoPSI4IiBtYXJrZXJIZWlnaHQ9IjgiIG9yaWVudD0iYXV0by1zdGFydC1yZXZlcnNlIj48cGF0aCBjbGFzcz0iYWgiIGQ9Ik0wLDAgTDEwLDUgTDAsMTAgeiIvPjwvbWFya2VyPgogICAgPG1hcmtlciBpZD0iYXJyQSIgdmlld0JveD0iMCAwIDEwIDEwIiByZWZYPSI5IiByZWZZPSI1IiBtYXJrZXJXaWR0aD0iOCIgbWFya2VySGVpZ2h0PSI4IiBvcmllbnQ9ImF1dG8tc3RhcnQtcmV2ZXJzZSI+PHBhdGggY2xhc3M9ImFoQSIgZD0iTTAsMCBMMTAsNSBMMCwxMCB6Ii8+PC9tYXJrZXI+CiAgPC9kZWZzPgogIDxyZWN0IGNsYXNzPSJiZyIgeD0iMCIgeT0iMCIgd2lkdGg9IjExMDAiIGhlaWdodD0iNjMwIi8+CgogIDwhLS0gRXh0ZXJuYWwgY29udmVyc2F0aW9ucyAtLT4KICA8dGV4dCBjbGFzcz0iaCIgeD0iMjIiIHk9IjE4MCI+5aSW6YOo5a+56K+dPC90ZXh0PgogIDxyZWN0IGNsYXNzPSJleHQiIHg9IjIwIiB5PSIxOTUiIHdpZHRoPSIxNzAiIGhlaWdodD0iNjQiIHJ4PSIzMiIvPgogIDx0ZXh0IGNsYXNzPSJ0IiB4PSIxMDUiIHk9IjIyMiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+R2l0SHViPC90ZXh0PgogIDx0ZXh0IGNsYXNzPSJzIiB4PSIxMDUiIHk9IjI0MyIgdGV4dC1hbmNob3I9Im1pZGRsZSI+SXNzdWUgwrcgUFIgwrcg6K+E5a6hIMK3IENJPC90ZXh0PgogIDxyZWN0IGNsYXNzPSJleHQiIHg9IjIwIiB5PSIyODUiIHdpZHRoPSIxNzAiIGhlaWdodD0iNjQiIHJ4PSIzMiIvPgogIDx0ZXh0IGNsYXNzPSJ0IiB4PSIxMDUiIHk9IjMxMiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+6aOe5LmmPC90ZXh0PgogIDx0ZXh0IGNsYXNzPSJzIiB4PSIxMDUiIHk9IjMzMyIgdGV4dC1hbmNob3I9Im1pZGRsZSI+576k6IGKIMK3IOivnemimCDCtyDnp4HogYo8L3RleHQ+CgogIDwhLS0gU291cmNlIHBsdWdpbiAtLT4KICA8cmVjdCBjbGFzcz0iY29kZSIgeD0iMjI4IiB5PSIyMTIiIHdpZHRoPSIxMzIiIGhlaWdodD0iMTIwIi8+CiAgPHRleHQgY2xhc3M9InQiIHg9IjI5NCIgeT0iMjQwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5Tb3VyY2Ug5o+S5Lu2PC90ZXh0PgogIDx0ZXh0IGNsYXNzPSJzIiB4PSIyOTQiIHk9IjI2MyIgdGV4dC1hbmNob3I9Im1pZGRsZSI+6L2u6K+iIC8g5LqL5Lu25rWBPC90ZXh0PgogIDx0ZXh0IGNsYXNzPSJzIiB4PSIyOTQiIHk9IjI4MiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+5ruk5o6J6Ieq5bex55qE5raI5oGvPC90ZXh0PgogIDx0ZXh0IGNsYXNzPSJzIiB4PSIyOTQiIHk9IjMwMSIgdGV4dC1hbmNob3I9Im1pZGRsZSI+57+76K+R5oiQIFRyaWdnZXI8L3RleHQ+CiAgPHBhdGggY2xhc3M9ImUiIGQ9Ik0xOTAsMjMyIEwyMjYsMjUwIi8+CiAgPHBhdGggY2xhc3M9ImUiIGQ9Ik0xOTAsMzEyIEwyMjYsMjkyIi8+CgogIDwhLS0gRW5naW5lIGZyYW1lIC0tPgogIDxyZWN0IGNsYXNzPSJmcmFtZSIgeD0iMzkyIiB5PSIxOTAiIHdpZHRoPSI0MTIiIGhlaWdodD0iMjAwIi8+CiAgPHRleHQgY2xhc3M9ImgiIHg9IjQwNCIgeT0iMzgwIj7noa7lrprmgKflhoXmoLggRW5naW5l77yI5ZCM5q2l5LqL5YqhIMK3IOeKtuaAgeeahOWUr+S4gOWGmeiAhe+8iTwvdGV4dD4KICA8cGF0aCBjbGFzcz0iZSIgZD0iTTM2MCwyNjUgTDQwMywyNjUiLz4KCiAgPHJlY3QgY2xhc3M9ImNvZGUiIHg9IjQwNiIgeT0iMjI2IiB3aWR0aD0iMTE2IiBoZWlnaHQ9IjgwIi8+CiAgPHRleHQgY2xhc3M9InQiIHg9IjQ2NCIgeT0iMjQ4IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5JbnRha2U8L3RleHQ+CiAgPHRleHQgY2xhc3M9InMiIHg9IjQ2NCIgeT0iMjcwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj7lkIwgaWQg5Y+q5a2Y5LiA5qyhPC90ZXh0PgogIDx0ZXh0IGNsYXNzPSJzIiB4PSI0NjQiIHk9IjI4OSIgdGV4dC1hbmNob3I9Im1pZGRsZSI+5b2S5YWlIFRocmVhZDwvdGV4dD4KCiAgPHJlY3QgY2xhc3M9ImNvZGUiIHg9IjU0MiIgeT0iMjI2IiB3aWR0aD0iMTE2IiBoZWlnaHQ9IjgwIi8+CiAgPHRleHQgY2xhc3M9InQiIHg9IjYwMCIgeT0iMjQ4IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5FdmFsPC90ZXh0PgogIDx0ZXh0IGNsYXNzPSJzIiB4PSI2MDAiIHk9IjI3MCIgdGV4dC1hbmNob3I9Im1pZGRsZSI+R2F0Ze+8muS7o+eggeWIpOadgzwvdGV4dD4KICA8dGV4dCBjbGFzcz0icyIgeD0iNjAwIiB5PSIyODkiIHRleHQtYW5jaG9yPSJtaWRkbGUiPuavjyBUaHJlYWQg5Liy6KGMPC90ZXh0PgoKICA8cmVjdCBjbGFzcz0iY29kZSIgeD0iNjc4IiB5PSIyMjYiIHdpZHRoPSIxMTYiIGhlaWdodD0iODAiLz4KICA8dGV4dCBjbGFzcz0idCIgeD0iNzM2IiB5PSIyNDgiIHRleHQtYW5jaG9yPSJtaWRkbGUiPlRpY2tldDwvdGV4dD4KICA8dGV4dCBjbGFzcz0icyIgeD0iNzM2IiB5PSIyNzAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPk1hbmRhdGUgwrcg6K6i6ZiFPC90ZXh0PgogIDx0ZXh0IGNsYXNzPSJzIiB4PSI3MzYiIHk9IjI4OSIgdGV4dC1hbmNob3I9Im1pZGRsZSI+5rS+5belIMK3IOmYtuautTwvdGV4dD4KCiAgPHBhdGggY2xhc3M9ImUiIGQ9Ik01MjIsMjY0IEw1NDAsMjY0Ii8+CiAgPHBhdGggY2xhc3M9ImUiIGQ9Ik02NTgsMjY0IEw2NzYsMjY0Ii8+CgogIDwhLS0gQnlwYXNzIGZhbi1vdXQgKGluc2lkZSBmcmFtZSwgYmVsb3cgYm94ZXMpIC0tPgogIDxwYXRoIGNsYXNzPSJlYiIgZD0iTTQ2NCwzMDYgTDQ2NCwzNTIgTDk2OCwzNTIgTDk2OCwzMzgiLz4KICA8dGV4dCBjbGFzcz0ibGFiQSIgeD0iNDc4IiB5PSIzNDQiPuW3suiuoumYhSBUaHJlYWQg5LiK55qE5ZCO57ut5raI5oGv77ya55u06L6+5omn6KGM5Zmo77yM5LiN57uPIEV2YWw8L3RleHQ+CgogIDwhLS0gU1FMaXRlIC0tPgogIDxwYXRoIGNsYXNzPSJzdG9yZSIgZD0iTTQ3MCw0MzggYTEyOCwxMiAwIDAsMSAyNTYsMCB2NTggYTEyOCwxMiAwIDAsMSAtMjU2LDAgeiIvPgogIDxwYXRoIGNsYXNzPSJzdG9yZSIgZD0iTTQ3MCw0MzggYTEyOCwxMiAwIDAsMCAyNTYsMCIgc3R5bGU9ImZpbGw6bm9uZSIvPgogIDx0ZXh0IGNsYXNzPSJ0IiB4PSI1OTgiIHk9IjQ3MiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+U1FMaXRlPC90ZXh0PgogIDx0ZXh0IGNsYXNzPSJzIiB4PSI1OTgiIHk9IjQ5MiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+6aKG5Z+f5a+56LGhIMK3IGVmZmVjdCDpmJ/liJcgwrcgb3V0Ym94IOWbnuaJpzwvdGV4dD4KICA8cGF0aCBjbGFzcz0iZSIgZD0iTTU5OCwzOTAgTDU5OCw0MjQiLz4KICA8dGV4dCBjbGFzcz0ibGFiIiB4PSI2MDgiIHk9IjQxMiI+6K+7IC8g5YaZPC90ZXh0PgoKICA8IS0tIE1haW4gU2Vzc2lvbiAocm91dGVyIExMTSkgLS0+CiAgPHJlY3QgY2xhc3M9ImxsbSIgeD0iNTAwIiB5PSI0MCIgd2lkdGg9IjIxMCIgaGVpZ2h0PSI5MCIgcng9IjE0Ii8+CiAgPHJlY3QgY2xhc3M9ImxsbTIiIHg9IjUwNSIgeT0iNDUiIHdpZHRoPSIyMDAiIGhlaWdodD0iODAiIHJ4PSIxMSIvPgogIDx0ZXh0IGNsYXNzPSJ0IiB4PSI2MDUiIHk9IjcyIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj7kuLsgU2Vzc2lvbu+8iOi3r+eUsSBMTE3vvIk8L3RleHQ+CiAgPHRleHQgY2xhc3M9InMiIHg9IjYwNSIgeT0iOTQiIHRleHQtYW5jaG9yPSJtaWRkbGUiPuWPqueci+WNoeeJhyDCtyDkuI3or7vku6PnoIE8L3RleHQ+CiAgPHRleHQgY2xhc3M9InMiIHg9IjYwNSIgeT0iMTEyIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj7ku47kuI3nrYnlvoUgwrcg57uT5p2f5Y2z56m66ZeyPC90ZXh0PgogIDxwYXRoIGNsYXNzPSJlYSIgZD0iTTU4MCwyMjYgTDU4MCwxMzIiLz4KICA8dGV4dCBjbGFzcz0ibGFiIiB4PSI1NzIiIHk9IjE2MCIgdGV4dC1hbmNob3I9ImVuZCI+5YCZ6YCJ5Y2h54mHPC90ZXh0PgogIDxwYXRoIGNsYXNzPSJlIiBkPSJNNjcwLDEzMCBMNzIyLDIyNCIvPgogIDx0ZXh0IGNsYXNzPSJsYWIiIHg9IjcwNCIgeT0iMTYwIj5yb3V0Ze+8mmFjY2VwdCAvIGF0dGFjaDwvdGV4dD4KICA8dGV4dCBjbGFzcz0ibGFiIiB4PSI3MDQiIHk9IjE3NyI+LyBzdG9wIC8gaWdub3JlPC90ZXh0PgoKICA8IS0tIFdvcmtlcnMgc3RhY2sgLS0+CiAgPHJlY3QgY2xhc3M9ImxsbSIgeD0iODg4IiB5PSIxOTYiIHdpZHRoPSIyMDAiIGhlaWdodD0iMTIwIiByeD0iMTQiIG9wYWNpdHk9Ii41NSIvPgogIDxyZWN0IGNsYXNzPSJsbG0iIHg9Ijg3OCIgeT0iMjA2IiB3aWR0aD0iMjAwIiBoZWlnaHQ9IjEyMCIgcng9IjE0IiBvcGFjaXR5PSIuOCIvPgogIDxyZWN0IGNsYXNzPSJsbG0iIHg9Ijg2OCIgeT0iMjE2IiB3aWR0aD0iMjAwIiBoZWlnaHQ9IjEyMCIgcng9IjE0Ii8+CiAgPHJlY3QgY2xhc3M9ImxsbTIiIHg9Ijg3MyIgeT0iMjIxIiB3aWR0aD0iMTkwIiBoZWlnaHQ9IjExMCIgcng9IjExIi8+CiAgPHRleHQgY2xhc3M9InQiIHg9Ijk2OCIgeT0iMjQ2IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj7miafooYzlmaggU2Vzc2lvbiDDlyBOPC90ZXh0PgogIDx0ZXh0IGNsYXNzPSJzIiB4PSI5NjgiIHk9IjI2OCIgdGV4dC1hbmNob3I9Im1pZGRsZSI+5LiA5Liq5bel5Y2VID0g5LiA5Liq5Lya6K+dPC90ZXh0PgogIDx0ZXh0IGNsYXNzPSJzIiB4PSI5NjgiIHk9IjI4NiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+KyDkuIDkuKogZ2l0IHdvcmt0cmVlPC90ZXh0PgogIDx0ZXh0IGNsYXNzPSJzIiB4PSI5NjgiIHk9IjMwNCIgdGV4dC1hbmNob3I9Im1pZGRsZSI+5YaF6YOo5LuN5pivIFJlQWN0IOW3peWFt+W+queOrzwvdGV4dD4KICA8dGV4dCBjbGFzcz0icyIgeD0iOTY4IiB5PSIzMjIiIHRleHQtYW5jaG9yPSJtaWRkbGUiPmdoIC8gbGFyay1jbGkg55u05o6l5byAIFBSPC90ZXh0PgogIDxwYXRoIGNsYXNzPSJlYSIgZD0iTTc5NCwyNTAgTDg2NiwyNTAiLz4KICA8dGV4dCBjbGFzcz0ibGFiIiB4PSI4MzEiIHk9IjIyNiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+5rS+5belPC90ZXh0PgogIDx0ZXh0IGNsYXNzPSJsYWIiIHg9IjgzMSIgeT0iMjQyIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5JbnB1dHM8L3RleHQ+CiAgPHBhdGggY2xhc3M9ImUiIGQ9Ik04NjYsMjg2IEw3OTYsMjg2Ii8+CiAgPHRleHQgY2xhc3M9ImxhYiIgeD0iODM2IiB5PSIzMDQiIHRleHQtYW5jaG9yPSJtaWRkbGUiPnJlcG9ydDwvdGV4dD4KICA8dGV4dCBjbGFzcz0ibGFiIiB4PSI4MzYiIHk9IjMxOSIgdGV4dC1hbmNob3I9Im1pZGRsZSI+YWNrPC90ZXh0PgogIDx0ZXh0IGNsYXNzPSJsYWIiIHg9IjgzNiIgeT0iMzM0IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5oYW5kYmFjazwvdGV4dD4KCiAgPCEtLSBDaGFubmVsIGJhY2sgLS0+CiAgPHJlY3QgY2xhc3M9ImNvZGUiIHg9IjIyOCIgeT0iNDQ1IiB3aWR0aD0iMTUwIiBoZWlnaHQ9IjcwIi8+CiAgPHRleHQgY2xhc3M9InQiIHg9IjMwMyIgeT0iNDczIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5DaGFubmVsIOWbnuWGmTwvdGV4dD4KICA8dGV4dCBjbGFzcz0icyIgeD0iMzAzIiB5PSI0OTUiIHRleHQtYW5jaG9yPSJtaWRkbGUiPuWQjOW3peWNleWQjOWvueivneS/neW6jzwvdGV4dD4KICA8cGF0aCBjbGFzcz0iZWEiIGQ9Ik00NjgsNDcwIEwzODAsNDc2Ii8+CiAgPHRleHQgY2xhc3M9ImxhYiIgeD0iNDI0IiB5PSI0NjIiIHRleHQtYW5jaG9yPSJtaWRkbGUiPm91dGJveCDooYw8L3RleHQ+CiAgPHBhdGggY2xhc3M9ImVhIiBkPSJNMjYyLDQ0NSBMMTUwLDM1MiIvPgogIDx0ZXh0IGNsYXNzPSJsYWIiIHg9IjE5NiIgeT0iNDAyIiB0ZXh0LWFuY2hvcj0iZW5kIj7lm57liLDlj5Hotbc8L3RleHQ+CiAgPHRleHQgY2xhc3M9ImxhYiIgeD0iMTk2IiB5PSI0MTgiIHRleHQtYW5jaG9yPSJlbmQiPuivt+axgueahOWvueivnTwvdGV4dD4KCiAgPCEtLSBQYW5lbCAtLT4KICA8cmVjdCBjbGFzcz0iY29kZSIgeD0iODY4IiB5PSI0NDAiIHdpZHRoPSIyMDAiIGhlaWdodD0iNzYiLz4KICA8dGV4dCBjbGFzcz0idCIgeD0iOTY4IiB5PSI0NjgiIHRleHQtYW5jaG9yPSJtaWRkbGUiPumdouadv++8iOe7mei/kOe7tOeahOS6uu+8iTwvdGV4dD4KICA8dGV4dCBjbGFzcz0icyIgeD0iOTY4IiB5PSI0OTAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPuWPquWIl+etieS6uuWkhOeQhueahOS6izwvdGV4dD4KICA8dGV4dCBjbGFzcz0icyIgeD0iOTY4IiB5PSI1MDciIHRleHQtYW5jaG9yPSJtaWRkbGUiPuWBnOatoiDCtyDph43or5Ugwrcg5pS5562W55WlPC90ZXh0PgogIDxwYXRoIGNsYXNzPSJlYSIgZD0iTTcyOCw0NzAgTDg2Niw0NzYiLz4KICA8dGV4dCBjbGFzcz0ibGFiIiB4PSI3OTYiIHk9IjQ2MiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+6KeG5Zu+PC90ZXh0PgoKICA8IS0tIExlZ2VuZCAtLT4KICA8ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSgyMCw1NjApIj4KICAgIDxyZWN0IGNsYXNzPSJjb2RlIiB4PSIwIiB5PSIwIiB3aWR0aD0iMzQiIGhlaWdodD0iMjIiLz4KICAgIDx0ZXh0IGNsYXNzPSJsYWIiIHg9IjQyIiB5PSIxNiI+56Gu5a6a5oCn5Luj56CBPC90ZXh0PgogICAgPHJlY3QgY2xhc3M9ImxsbSIgeD0iMTQwIiB5PSIwIiB3aWR0aD0iMzQiIGhlaWdodD0iMjIiIHJ4PSI3Ii8+PHJlY3QgY2xhc3M9ImxsbTIiIHg9IjE0MyIgeT0iMyIgd2lkdGg9IjI4IiBoZWlnaHQ9IjE2IiByeD0iNSIvPgogICAgPHRleHQgY2xhc3M9ImxhYiIgeD0iMTgyIiB5PSIxNiI+TExNIOS8muivnTwvdGV4dD4KICAgIDxyZWN0IGNsYXNzPSJleHQiIHg9IjI3MCIgeT0iMCIgd2lkdGg9IjQ0IiBoZWlnaHQ9IjIyIiByeD0iMTEiLz4KICAgIDx0ZXh0IGNsYXNzPSJsYWIiIHg9IjMyMiIgeT0iMTYiPuWklumDqOezu+e7nzwvdGV4dD4KICAgIDxwYXRoIGNsYXNzPSJzdG9yZSIgZD0iTTQxMCw0IGExNiw0IDAgMCwxIDMyLDAgdjE0IGExNiw0IDAgMCwxIC0zMiwwIHoiLz4KICAgIDx0ZXh0IGNsYXNzPSJsYWIiIHg9IjQ1MCIgeT0iMTYiPuaMgeS5heeKtuaAgTwvdGV4dD4KICAgIDxwYXRoIGNsYXNzPSJlIiBkPSJNNTQwLDExIEw1OTAsMTEiLz4KICAgIDx0ZXh0IGNsYXNzPSJsYWIiIHg9IjU5OCIgeT0iMTYiPuWQjOatpeiwg+eUqCAvIOi/m+WFpeWGheaguOeahOS6i+S7tjwvdGV4dD4KICAgIDxwYXRoIGNsYXNzPSJlYSIgZD0iTTc4MCwxMSBMODMwLDExIi8+CiAgICA8dGV4dCBjbGFzcz0ibGFiIiB4PSI4MzgiIHk9IjE2Ij7lhYjokL3nm5jjgIHlho3lvILmraXmiafooYznmoTlia/kvZznlKg8L3RleHQ+CiAgICA8cGF0aCBjbGFzcz0iZWIiIGQ9Ik01NDAsNDYgTDU5MCw0NiIvPgogICAgPHRleHQgY2xhc3M9ImxhYiIgeD0iNTk4IiB5PSI1MSI+6K6i6ZiF5omH5Ye677ya57uV6L+HIEV2YWwg55qE6YKj5p2h6LevPC90ZXh0PgogIDwvZz4KPC9zdmc+Cg==" alt="图 1" /></p>
+<p><strong>图 1：LLM 只出现在两处，即分诊（主
+Session）和执行（每工单一个执行器
+Session）。谁能触发、谁被授权、工单处于什么状态，全由确定性内核和 SQLite
+决定。所有离开内核的箭头都是虚线：先落盘，再异步执行。</strong></p>
+<h3 id="14-一个骨架触发--授权--状态--执行">1.4 一个骨架：触发 · 授权 ·
+状态 · 执行</h3>
+<p>全文挂在四个词上：<strong>触发</strong>（谁唤醒
+agent）、<strong>授权</strong>（凭什么允许它动手）、<strong>状态</strong>（“谁在做什么”存在哪）、<strong>执行</strong>（谁动手、在哪动手）。这是本文的组织方式，不是仓库的官方分类。选它是因为它是<strong>生成式</strong>的：§9
+会把 ReAct、Subagent、Agent Team 和 superagent
+放进同一组轴，每种架构就是这四个轴上的一组取值。</p>
+<h3 id="15-二十几行伪代码">1.5 二十几行伪代码</h3>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>db <span class="op">=</span> SQLite()                                  <span class="co"># 全部协调状态在这里，不在任何 LLM 的上下文里</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> on_source_event(raw):                      <span class="co"># 【触发】外部事件，不是用户 prompt</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>    msg <span class="op">=</span> db.store_once(translate(raw))        <span class="co"># 同 id 只存一次 → 天然幂等</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>    owners <span class="op">=</span> db.live_tickets_subscribed_to(msg.thread)</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> t <span class="kw">in</span> owners: t.inputs.add(msg)         <span class="co"># 已订阅线程上的消息直接扇给工单</span></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> <span class="kw">not</span> (msg.from_human <span class="kw">and</span> owns_followup(owners, msg)):</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>        msg.thread.queue.add(msg)              <span class="co"># 其余的才排队等评估</span></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> every_2_seconds():</span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> th <span class="kw">in</span> db.threads_with_queue():         <span class="co"># 每个 Thread 同时只有一个评估</span></span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>        batch <span class="op">=</span> th.queue.drain()</span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>        level <span class="op">=</span> gate(batch, db.policy)         <span class="co"># 【授权】纯代码判权，模型无权参与</span></span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> level <span class="kw">is</span> <span class="va">None</span>: db.record(batch, <span class="st">&quot;ignore&quot;</span>)<span class="op">;</span> <span class="cf">continue</span></span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>        router_llm.steer(card(batch, level))   <span class="co"># 路由 LLM 只看一张有界的卡片</span></span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> router_tool_route(msg, kind, title):       <span class="co"># LLM 只能“请求”，内核可以拒绝</span></span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a>    ev <span class="op">=</span> db.eval_holding(msg)                  <span class="co"># 强度来自 Gate，不来自 LLM</span></span>
+<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a>    <span class="cf">with</span> db.transaction():                     <span class="co"># 【状态】决定、工单、授权书、订阅、派工、确认同时提交</span></span>
+<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> kind <span class="op">!=</span> <span class="st">&quot;accept&quot;</span>: <span class="cf">return</span> db.record(ev, kind)</span>
+<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a>        t <span class="op">=</span> db.new_ticket(msg, Mandate(ev.level, db.policy.version, scope<span class="op">=</span>title))</span>
+<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a>        db.enqueue(<span class="st">&quot;launch&quot;</span>, t)<span class="op">;</span> db.enqueue(<span class="st">&quot;reply&quot;</span>, ack(t))   <span class="co"># 副作用先落盘</span></span>
+<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> on_launch(t):                              <span class="co"># 【执行】一工单 = 一会话 + 一 worktree</span></span>
+<span id="cb1-25"><a href="#cb1-25" aria-hidden="true" tabindex="-1"></a>    run(prepare_cmd)<span class="op">;</span> worker_session(t).queue(assignment(t))  <span class="co"># 会话内部是 ReAct</span></span>
+<span id="cb1-26"><a href="#cb1-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-27"><a href="#cb1-27" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> on_pr_closed(pr):                          <span class="co"># 终止 = 外部世界的事实，不是模型说“完成”</span></span>
+<span id="cb1-28"><a href="#cb1-28" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> t <span class="kw">in</span> db.tickets_following(pr): t.end(outcome<span class="op">=</span>pr.state)</span></code></pre></div>
+<p><strong>最关键的一行</strong>是
+<code>level = gate(batch, db.policy)</code>：授权发生在模型之外。它决定了后面所有设计，包括为什么需要不可变的
+Mandate、为什么路由 LLM 只能“请求”、为什么 prompt 只能收紧权限。</p>
+<p><strong>去掉某一行会怎样：</strong></p>
+<ul>
+<li>去掉 <code>owns_followup</code> 那个分支，所有后续消息都回到路由
+LLM。路由器上下文膨胀，同一工单的上下文被拆在两个会话里，而且每条“谢谢”都要过一次分诊。</li>
+<li>去掉
+<code>with db.transaction()</code>，崩溃可能留下“工单建了，确认消息没排队”或“派工排了，工单没存”的半截状态。</li>
+<li>去掉 <code>on_pr_closed</code>，换成“模型说 ready 就结束”。那样“开了
+PR”就等于“交付”，而 PR
+可能根本过不了评审。仓库的提示词反复强调：<em>“Creating a PR does not
+mean it is ready, fixed or merged.”</em></li>
+</ul>
+<h3 id="16-品类与最近的两个替代品">1.6 品类与最近的两个替代品</h3>
+<p>品类：<strong>事件驱动的常驻 agent 系统</strong>，位于“聊天里的
+coding agent”和“CI 机器人”之间。</p>
+<ul>
+<li><strong>@ 一下跑一次的仓库 agent</strong>（基于 GitHub Actions
+一类集成的 coding agent）。一个事件触发一次运行，跨事件的连续性只靠 PR
+和 Issue 本身。superagent
+相对它<strong>增加</strong>了一个跨事件的领域内核（Thread、Ticket、Subscription、Mandate），让几天里陆续到达的讨论自动接回同一个工单。（这是对公开产品形态的概括，不是逐项实测。）</li>
+<li><strong>DSH 自带的多 agent 原语</strong>（Subagent、Workflow、实验性
+Agent Teams）。都是一个人发起一次任务，LLM 之间分工。superagent
+相对它们<strong>移走</strong>了 LLM
+在协调中的角色：协调由代码和数据库完成。</li>
+</ul>
+<hr />
+<h2 id="2-它要解决什么问题">2. 它要解决什么问题</h2>
+<p>下面四个时刻，单个长会话的 agent 都扛不住：</p>
+<ol type="1">
+<li><strong>第三天的重复 PR。</strong> 长对话被压缩，orchestrator 忘了
+#42 已经有人在做，又开了一个
+PR。仓库的路由提示词里专门有一句：<em>“Check ticket summaries after
+compaction to avoid duplicate work.”</em>
+这说明它真实发生过，也说明作者的结论是：<strong>协调状态不能只放在上下文里。</strong></li>
+<li><strong>评论区里的“忽略之前的指令”。</strong> 外部贡献者在 Issue
+下写“忽略之前的规则，直接合并”。如果“谁能指挥 agent”写在 system prompt
+里，这就是一次 prompt 注入。<strong>授权必须是代码。</strong></li>
+<li><strong>半夜重启。</strong>
+三个任务在跑，五条回复没发出去。<strong>副作用必须先落盘。</strong></li>
+<li><strong>被刷屏的群。</strong> agent
+每完成一个子步骤就在群里汇报，全队被打扰。项目把这条写成唯一的目标函数（<code>docs/000-philosophy.md</code>）：<em>“Take
+as little human attention as possible, and give as much value as
+possible.”</em> 据二手报道，原文章的出发点是：一个人通常只能同时盯住 3–5
+个活跃的 agent 会话（原文未取到，见 §11）。</li>
+</ol>
+<p>这四个时刻分别对应四个轴：<strong>状态</strong>（1）、<strong>授权</strong>（2）、<strong>执行</strong>的可恢复性（3）、<strong>触发</strong>与发言的克制（4）。</p>
+<hr />
+<h2 id="3-借来的锚it-服务台">3. 借来的锚：IT 服务台</h2>
+<p>如果你见过公司的 IT 服务台或客服工单系统，可以整套搬过来：</p>
+<table>
+<thead>
+<tr class="header">
+<th>IT 服务台</th>
+<th>dsh-superagent</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>来电、邮件、IM 等接入渠道</td>
+<td>Source</td>
+</tr>
+<tr class="even">
+<td>一通来电 / 一封邮件</td>
+<td>Trigger</td>
+</tr>
+<tr class="odd">
+<td>一个会话或邮件线程</td>
+<td>Thread</td>
+</tr>
+<tr class="even">
+<td>前台接线员：只分诊，不修电脑</td>
+<td>主 Session</td>
+</tr>
+<tr class="odd">
+<td>服务台规章与权限名单</td>
+<td>Policy 与 Gate</td>
+</tr>
+<tr class="even">
+<td>派工单上的授权签字：批准做什么、谁批的、依据哪版规章</td>
+<td>Mandate</td>
+</tr>
+<tr class="odd">
+<td>工单</td>
+<td>Ticket</td>
+</tr>
+<tr class="even">
+<td>工单抄送列表：谁回邮件都进工单</td>
+<td>Subscription</td>
+</tr>
+<tr class="odd">
+<td>派给某工程师的一次出工</td>
+<td>Assignment</td>
+</tr>
+<tr class="even">
+<td>一线工程师，有自己的工位和工具</td>
+<td>执行器 Session 与 worktree</td>
+</tr>
+<tr class="odd">
+<td>统一的客户回复出口</td>
+<td>Channel 与 outbox</td>
+</tr>
+<tr class="even">
+<td>值班看板</td>
+<td>面板</td>
+</tr>
+</tbody>
+</table>
+<p><strong>这个类比在三处失效：</strong></p>
+<ol type="1">
+<li>前台是 LLM，会超时。评估默认 120
+秒没结论就重排，连续超时两次后第三次记为
+<code>unavailable</code>。真人前台不会这样。</li>
+<li>真实工程师之间可以私下沟通。这里<strong>执行器之间不能直接发消息</strong>，只能订阅同一个线程，或由前台转一张
+≤100
+词的便条（<code>orchestrator_ticket_note</code>），而且便条不带任何授权。</li>
+<li>现实中授权可以口头追加。这里 Mandate
+不可变，扩大范围就得开新工单。</li>
+</ol>
+<hr />
+<h2 id="4-四个轴逐一展开">4. 四个轴，逐一展开</h2>
+<h3 id="41-触发source--trigger--thread">4.1 触发：Source → Trigger →
+Thread</h3>
+<ul>
+<li><strong>两个 Source 实现。</strong> GitHub Source 轮询
+notifications，至少 60 秒一次，并遵守 GitHub 返回的
+<code>X-Poll-Interval</code>。它还会读已订阅的 Issue 和 PR、CI 变化、PR
+合并或关闭；可以选择打开“全收”开关，接收新 Issue、新
+PR、所有评论和默认分支 CI。飞书 Source
+有实时事件消费、历史补偿和已订阅话题轮询。</li>
+<li><strong>Source 的职责边界。</strong> Source
+持有读位置；在消息进入领域之前，丢掉机器人自己发的和不在监听范围内的消息；把原生事件翻译成
+Trigger，字段包括
+<code>human</code>、<code>addressed: mention|direct</code>、<code>threads[]</code>
+和 <code>channel</code>。<code>meta</code> 归 Source
+所有，核心层不解释它（<code>src/core/model.ts</code>）。</li>
+<li><strong>一条 Trigger 可以属于多个 Thread。</strong>
+<code>threads[0]</code> 是主 Thread，评估在它上面跑。Thread 之间的
+Correlation <strong>只补充上下文，不参与路由</strong>。路由只由
+Subscription 决定。</li>
+<li><strong>Thread 是评估的一致性边界。</strong> 一个 Thread
+同时最多有一个 Eval，期间到达的 Trigger 进 <code>pending</code>
+缓冲区，下一轮合成一批（<code>src/core/evals.ts</code>）。</li>
+<li><strong>订阅线程的轮询期。</strong> 工单结束后两周内，Source
+继续轮询它订阅的线程，之后只靠常规接入。</li>
+<li><strong>一个容易被忽略的约束：“等待”属于 Source，不属于
+Eval。</strong> 像“某 Issue 超过 N
+小时没人认领”这种条件，要做成一个会自己等待和复查的 Source，Eval
+永远不等。这让依赖方向保持单向：Eval 不会反过来依赖
+Source（<code>docs/001-domain.md</code> 的 Rejected concepts 表）。</li>
+<li><strong>扩展点。</strong> <code>SourceKind</code>
+协议（<code>src/sources/kind.ts</code>），配一份 11 步的 Source
+接入手册（<code>docs/008-cookbook.md</code>）。</li>
+</ul>
+<h3 id="42-授权代码-gatellm-研判与不可变-mandate">4.2 授权：代码
+Gate、LLM 研判与不可变 Mandate</h3>
+<p><strong>一条消息只走两条路之一：</strong></p>
+<p><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA5ODAgODEwIiByb2xlPSJpbWciIGFyaWEtbGFiZWxsZWRieT0ibDFydCBsMXJkIj4KICA8dGl0bGUgaWQ9ImwxcnQiPuS4gOadoea2iOaBr+eahOS4pOadoei3r++8iEwx77ya5pS+5aSnIEwwIOeahCBJbnRha2Ug5LiOIEV2YWzvvIk8L3RpdGxlPgogIDxkZXNjIGlkPSJsMXJkIj7lt7LmnInlt6XljZXnmoTlkI7nu63mtojmga/nlLHor6Xlt6XljZXnmoTmiafooYzlmajoh6rlt7Hoo4HlhrPvvIzkuI3nu48gRXZhbO+8m+WFtuS9mea2iOaBr+WFiOi/h+e6r+S7o+eggeeahCBHYXRlIOW+l+WIsOW8uuW6pu+8jOWGjeS6pOe7mei3r+eUsSBMTE3jgIJMTE0g5rC46L+c5ou/5LiN5YiwIEdhdGUg5LmL5aSW55qE5o6I5p2D77yM5Li75Yqo5Y+R546w55qE5bel5L2c5ZyoIG9ic2VydmUg5qih5byP5LiL5Y+q6K6w5b2V5LiN5Yqo5omL44CCPC9kZXNjPgogIDxzdHlsZT4KICAgIHN2ZyB7IC0tYmc6I2ZmZmZmZjsgLS1pbms6IzFmMjMyODsgLS1tdXRlZDojNTc2MDZhOyAtLWNvZGUtZmlsbDojZjZmOGZhOyAtLWNvZGUtc3Ryb2tlOiMyNDI5MmY7IC0tbGxtLWZpbGw6I2ZmZjRlNTsgLS1sbG0tc3Ryb2tlOiNiMzU5MDA7CiAgICAgICAgICAtLWV4dC1maWxsOiNlZWY2ZmY7IC0tZXh0LXN0cm9rZTojMDk2OWRhOyAtLWVkZ2U6IzQyNGE1MzsgLS1hY2NlbnQ6I2NmMjIyZTsgLS1kZWMtZmlsbDojZmZmZmZmOwogICAgICAgICAgZm9udC1mYW1pbHk6IC1hcHBsZS1zeXN0ZW0sIEJsaW5rTWFjU3lzdGVtRm9udCwgIlBpbmdGYW5nIFNDIiwgIkhpcmFnaW5vIFNhbnMgR0IiLCAiTm90byBTYW5zIENKSyBTQyIsICJTb3VyY2UgSGFuIFNhbnMgU0MiLCAiTWljcm9zb2Z0IFlhSGVpIiwgIldlblF1YW5ZaSBaZW4gSGVpIiwgc2Fucy1zZXJpZjsgfQogICAgQG1lZGlhIChwcmVmZXJzLWNvbG9yLXNjaGVtZTogZGFyaykgewogICAgICBzdmcgeyAtLWJnOiMwZDExMTc7IC0taW5rOiNlNmVkZjM7IC0tbXV0ZWQ6IzlkYTdiMzsgLS1jb2RlLWZpbGw6IzE2MWIyMjsgLS1jb2RlLXN0cm9rZTojYzlkMWQ5OyAtLWxsbS1maWxsOiMyYjFkMGM7IC0tbGxtLXN0cm9rZTojZjBhMTRhOwogICAgICAgICAgICAtLWV4dC1maWxsOiMwYzIzNDA7IC0tZXh0LXN0cm9rZTojNThhNmZmOyAtLWVkZ2U6I2FkYmFjNzsgLS1hY2NlbnQ6I2ZmN2I3MjsgLS1kZWMtZmlsbDojMGQxMTE3OyB9CiAgICB9CiAgICAuYmcgeyBmaWxsOiB2YXIoLS1iZyk7IH0KICAgIC5jb2RlIHsgZmlsbDogdmFyKC0tY29kZS1maWxsKTsgc3Ryb2tlOiB2YXIoLS1jb2RlLXN0cm9rZSk7IHN0cm9rZS13aWR0aDogMS41OyB9CiAgICAuZ2F0ZSB7IGZpbGw6IHZhcigtLWNvZGUtZmlsbCk7IHN0cm9rZTogdmFyKC0tY29kZS1zdHJva2UpOyBzdHJva2Utd2lkdGg6IDM7IH0KICAgIC5yZWMgeyBmaWxsOiBub25lOyBzdHJva2U6IHZhcigtLW11dGVkKTsgc3Ryb2tlLXdpZHRoOiAxLjM7IHN0cm9rZS1kYXNoYXJyYXk6IDUgNDsgfQogICAgLmRlYyB7IGZpbGw6IHZhcigtLWRlYy1maWxsKTsgc3Ryb2tlOiB2YXIoLS1jb2RlLXN0cm9rZSk7IHN0cm9rZS13aWR0aDogMS41OyB9CiAgICAubGxtIHsgZmlsbDogdmFyKC0tbGxtLWZpbGwpOyBzdHJva2U6IHZhcigtLWxsbS1zdHJva2UpOyBzdHJva2Utd2lkdGg6IDEuNTsgfQogICAgLmxsbTIgeyBmaWxsOiBub25lOyBzdHJva2U6IHZhcigtLWxsbS1zdHJva2UpOyBzdHJva2Utd2lkdGg6IDE7IH0KICAgIC5leHQgeyBmaWxsOiB2YXIoLS1leHQtZmlsbCk7IHN0cm9rZTogdmFyKC0tZXh0LXN0cm9rZSk7IHN0cm9rZS13aWR0aDogMS41OyB9CiAgICAudCB7IGZpbGw6IHZhcigtLWluayk7IGZvbnQtc2l6ZTogMTQuNXB4OyBmb250LXdlaWdodDogNjAwOyB9CiAgICAucyB7IGZpbGw6IHZhcigtLW11dGVkKTsgZm9udC1zaXplOiAxMi41cHg7IH0KICAgIC5sYWIgeyBmaWxsOiB2YXIoLS1pbmspOyBmb250LXNpemU6IDEyLjVweDsgZm9udC13ZWlnaHQ6IDYwMDsgfQogICAgLmxhYkEgeyBmaWxsOiB2YXIoLS1hY2NlbnQpOyBmb250LXNpemU6IDEyLjVweDsgZm9udC13ZWlnaHQ6IDYwMDsgfQogICAgLmUgeyBzdHJva2U6IHZhcigtLWVkZ2UpOyBzdHJva2Utd2lkdGg6IDEuNjsgZmlsbDogbm9uZTsgbWFya2VyLWVuZDogdXJsKCNhcnIpOyB9CiAgICAuZWIgeyBzdHJva2U6IHZhcigtLWFjY2VudCk7IHN0cm9rZS13aWR0aDogMjsgZmlsbDogbm9uZTsgc3Ryb2tlLWRhc2hhcnJheTogMiA0IDEwIDQ7IG1hcmtlci1lbmQ6IHVybCgjYXJyQSk7IH0KICAgIC5haCB7IGZpbGw6IHZhcigtLWVkZ2UpOyB9IC5haEEgeyBmaWxsOiB2YXIoLS1hY2NlbnQpOyB9CiAgPC9zdHlsZT4KICA8ZGVmcz4KICAgIDxtYXJrZXIgaWQ9ImFyciIgdmlld0JveD0iMCAwIDEwIDEwIiByZWZYPSI5IiByZWZZPSI1IiBtYXJrZXJXaWR0aD0iOCIgbWFya2VySGVpZ2h0PSI4IiBvcmllbnQ9ImF1dG8tc3RhcnQtcmV2ZXJzZSI+PHBhdGggY2xhc3M9ImFoIiBkPSJNMCwwIEwxMCw1IEwwLDEwIHoiLz48L21hcmtlcj4KICAgIDxtYXJrZXIgaWQ9ImFyckEiIHZpZXdCb3g9IjAgMCAxMCAxMCIgcmVmWD0iOSIgcmVmWT0iNSIgbWFya2VyV2lkdGg9IjgiIG1hcmtlckhlaWdodD0iOCIgb3JpZW50PSJhdXRvLXN0YXJ0LXJldmVyc2UiPjxwYXRoIGNsYXNzPSJhaEEiIGQ9Ik0wLDAgTDEwLDUgTDAsMTAgeiIvPjwvbWFya2VyPgogIDwvZGVmcz4KICA8cmVjdCBjbGFzcz0iYmciIHg9IjAiIHk9IjAiIHdpZHRoPSI5ODAiIGhlaWdodD0iODEwIi8+CgogIDwhLS0gU3RhcnQgLS0+CiAgPHJlY3QgY2xhc3M9ImV4dCIgeD0iMzcwIiB5PSIxNCIgd2lkdGg9IjI2MCIgaGVpZ2h0PSI0NCIgcng9IjIyIi8+CiAgPHRleHQgY2xhc3M9InQiIHg9IjUwMCIgeT0iNDEiIHRleHQtYW5jaG9yPSJtaWRkbGUiPuWklumDqOa2iOaBryDihpIgVHJpZ2dlcjwvdGV4dD4KICA8cGF0aCBjbGFzcz0iZSIgZD0iTTUwMCw1OCBMNTAwLDc4Ii8+CgogIDwhLS0gRDEgLS0+CiAgPHBvbHlnb24gY2xhc3M9ImRlYyIgcG9pbnRzPSIzNTAsMTE4IDUwMCw4MCA2NTAsMTE4IDUwMCwxNTYiLz4KICA8dGV4dCBjbGFzcz0idCIgeD0iNTAwIiB5PSIxMjMiIHRleHQtYW5jaG9yPSJtaWRkbGUiPlNvdXJjZSDlnKjlkKzov5nkuKrkvJror53lkJfvvJ88L3RleHQ+CiAgPHBhdGggY2xhc3M9ImUiIGQ9Ik02NTAsMTE4IEw3MTgsMTE4Ii8+CiAgPHRleHQgY2xhc3M9ImxhYiIgeD0iNjg0IiB5PSIxMTAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPuWQpjwvdGV4dD4KICA8cmVjdCBjbGFzcz0icmVjIiB4PSI3MjAiIHk9Ijk0IiB3aWR0aD0iMjQwIiBoZWlnaHQ9IjQ4Ii8+CiAgPHRleHQgY2xhc3M9InQiIHg9Ijg0MCIgeT0iMTE1IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5maWx0ZXJlZDwvdGV4dD4KICA8dGV4dCBjbGFzcz0icyIgeD0iODQwIiB5PSIxMzMiIHRleHQtYW5jaG9yPSJtaWRkbGUiPuiusOWOn+WboOegge+8jOS4jei/m+WFpemihuWfnzwvdGV4dD4KICA8cGF0aCBjbGFzcz0iZSIgZD0iTTUwMCwxNTYgTDUwMCwxODQiLz4KICA8dGV4dCBjbGFzcz0ibGFiIiB4PSI1MTAiIHk9IjE3NSI+5pivPC90ZXh0PgoKICA8IS0tIEIxIC0tPgogIDxyZWN0IGNsYXNzPSJjb2RlIiB4PSIzMDAiIHk9IjE4NiIgd2lkdGg9IjQwMCIgaGVpZ2h0PSI1NiIvPgogIDx0ZXh0IGNsYXNzPSJ0IiB4PSI1MDAiIHk9IjIwOCIgdGV4dC1hbmNob3I9Im1pZGRsZSI+SW50YWtl77ya5ZCMIGlkIOWPquWtmOS4gOasoTwvdGV4dD4KICA8dGV4dCBjbGFzcz0icyIgeD0iNTAwIiB5PSIyMjgiIHRleHQtYW5jaG9yPSJtaWRkbGUiPuaJh+WHuue7meiuoumYheivpSBUaHJlYWQg55qE5rS75bel5Y2V77yI5L2c5Li6IElucHV077yJPC90ZXh0PgogIDxwYXRoIGNsYXNzPSJlIiBkPSJNNTAwLDI0MiBMNTAwLDI1NiIvPgoKICA8IS0tIEQyIC0tPgogIDxwb2x5Z29uIGNsYXNzPSJkZWMiIHBvaW50cz0iMzAwLDMwMCA1MDAsMjU4IDcwMCwzMDAgNTAwLDM0MiIvPgogIDx0ZXh0IGNsYXNzPSJ0IiB4PSI1MDAiIHk9IjI5NiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+5Lq655qE5raI5oGv77yM5LiU6JC95ZyoPC90ZXh0PgogIDx0ZXh0IGNsYXNzPSJ0IiB4PSI1MDAiIHk9IjMxNSIgdGV4dC1hbmNob3I9Im1pZGRsZSI+5p+Q5bel5Y2V6Ieq5bex55qEIFRocmVhZCDkuIrvvJ88L3RleHQ+CgogIDwhLS0gWWVzIGJyYW5jaDogd29ya2VyIGRlY2lkZXMgLS0+CiAgPHBhdGggY2xhc3M9ImViIiBkPSJNMzAwLDMwMCBMMjcyLDMwMCIvPgogIDx0ZXh0IGNsYXNzPSJsYWJBIiB4PSIyODciIHk9IjI4NCIgdGV4dC1hbmNob3I9Im1pZGRsZSI+5pivPC90ZXh0PgogIDxyZWN0IGNsYXNzPSJsbG0iIHg9IjIwIiB5PSIyNTYiIHdpZHRoPSIyNTAiIGhlaWdodD0iODgiIHJ4PSIxMiIvPgogIDxyZWN0IGNsYXNzPSJsbG0yIiB4PSIyNCIgeT0iMjYwIiB3aWR0aD0iMjQyIiBoZWlnaHQ9IjgwIiByeD0iOSIvPgogIDx0ZXh0IGNsYXNzPSJ0IiB4PSIxNDUiIHk9IjI4MiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+6K+l5bel5Y2V55qE5omn6KGM5Zmo6Ieq5bex6KOB5YazPC90ZXh0PgogIDx0ZXh0IGNsYXNzPSJsYWJBIiB4PSIxNDUiIHk9IjMwMiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+6Zu2IEV2YWw8L3RleHQ+CiAgPHRleHQgY2xhc3M9InMiIHg9IjE0NSIgeT0iMzIwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj7kuLsgU2Vzc2lvbiDlj6rmlLYgZm9sbG93X3VwIOmAmuefpe+8jDwvdGV4dD4KICA8dGV4dCBjbGFzcz0icyIgeD0iMTQ1IiB5PSIzMzYiIHRleHQtYW5jaG9yPSJtaWRkbGUiPuWvueWug+WPquiDveWPkei1tyBzdG9wPC90ZXh0PgogIDxwYXRoIGNsYXNzPSJlIiBkPSJNOTAsMzQ0IEw4MCwzNzgiLz4KICA8cGF0aCBjbGFzcz0iZSIgZD0iTTIwMCwzNDQgTDIxMCwzNzgiLz4KICA8cmVjdCBjbGFzcz0ibGxtIiB4PSIyMCIgeT0iMzgwIiB3aWR0aD0iMTE4IiBoZWlnaHQ9IjU4IiByeD0iMTAiLz4KICA8dGV4dCBjbGFzcz0idCIgeD0iNzkiIHk9IjQwNCIgdGV4dC1hbmNob3I9Im1pZGRsZSI+6IyD5Zu05YaFPC90ZXh0PgogIDx0ZXh0IGNsYXNzPSJzIiB4PSI3OSIgeT0iNDI0IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5hY2vvvIzmjqXnnYDlgZo8L3RleHQ+CiAgPHJlY3QgY2xhc3M9ImxsbSIgeD0iMTUwIiB5PSIzODAiIHdpZHRoPSIxMjAiIGhlaWdodD0iNTgiIHJ4PSIxMCIvPgogIDx0ZXh0IGNsYXNzPSJ0IiB4PSIyMTAiIHk9IjQwNCIgdGV4dC1hbmNob3I9Im1pZGRsZSI+6LaF5Ye66IyD5Zu0PC90ZXh0PgogIDx0ZXh0IGNsYXNzPSJzIiB4PSIyMTAiIHk9IjQyNCIgdGV4dC1hbmNob3I9Im1pZGRsZSI+aGFuZGJhY2sg5LiA5qyhPC90ZXh0PgogIDxwYXRoIGNsYXNzPSJlIiBkPSJNMjcwLDQwOSBMMzI4LDQwOSIvPgogIDx0ZXh0IGNsYXNzPSJsYWIiIHg9IjI5OSIgeT0iNDAwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj7luKbnkIbnlLE8L3RleHQ+CgogIDwhLS0gTm8gYnJhbmNoOiBldmFsIHF1ZXVlIC0tPgogIDxwYXRoIGNsYXNzPSJlIiBkPSJNNTAwLDM0MiBMNTAwLDM3OCIvPgogIDx0ZXh0IGNsYXNzPSJsYWIiIHg9IjUxMCIgeT0iMzY1Ij7lkKbvvIjlkKvmiYDmnIkgYm90IC8gQ0kg5raI5oGv77yJPC90ZXh0PgogIDxyZWN0IGNsYXNzPSJjb2RlIiB4PSIzMzAiIHk9IjM4MCIgd2lkdGg9IjM4MCIgaGVpZ2h0PSI1OCIvPgogIDx0ZXh0IGNsYXNzPSJ0IiB4PSI1MjAiIHk9IjQwMyIgdGV4dC1hbmNob3I9Im1pZGRsZSI+6L+b5YWl5Li7IFRocmVhZCDnmoQgRXZhbCDpmJ/liJc8L3RleHQ+CiAgPHRleHQgY2xhc3M9InMiIHg9IjUyMCIgeT0iNDIzIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj7lkIzkuIAgVGhyZWFkIOWQjOaXtuWPqui3keS4gOS4qiBFdmFs77yM5pyf6Ze05Yiw6L6+55qE5bm25YWl5LiL5LiA5om5PC90ZXh0PgogIDxwYXRoIGNsYXNzPSJlIiBkPSJNNTIwLDQzOCBMNTIwLDQ3MiIvPgoKICA8IS0tIEdhdGUgLS0+CiAgPHJlY3QgY2xhc3M9ImdhdGUiIHg9IjMzMCIgeT0iNDc0IiB3aWR0aD0iMzgwIiBoZWlnaHQ9IjYyIi8+CiAgPHRleHQgY2xhc3M9InQiIHg9IjUyMCIgeT0iNDk4IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5HYXRl77yI57qv5Luj56CB77yM5LiN6Zeu5qih5Z6L77yJPC90ZXh0PgogIDx0ZXh0IGNsYXNzPSJzIiB4PSI1MjAiIHk9IjUyMCIgdGV4dC1hbmNob3I9Im1pZGRsZSI+5ZCN5Y2VIMOXIOaYr+WQpiBAIOacuuWZqOS6uiDDlyDlh4blhaXooaggw5cg5o6l5Y2V5qih5byPIOKGkiDlvLrluqY8L3RleHQ+CgogIDwhLS0gT3V0Y29tZXMgLS0+CiAgPHBhdGggY2xhc3M9ImUiIGQ9Ik0zNjAsNTM2IEwyMDAsNTg4Ii8+CiAgPHRleHQgY2xhc3M9ImxhYiIgeD0iMjUwIiB5PSI1NTYiIHRleHQtYW5jaG9yPSJtaWRkbGUiPuS4jeWHhuWFpTwvdGV4dD4KICA8cmVjdCBjbGFzcz0icmVjIiB4PSIyMCIgeT0iNTkwIiB3aWR0aD0iMjUwIiBoZWlnaHQ9IjU4Ii8+CiAgPHRleHQgY2xhc3M9InQiIHg9IjE0NSIgeT0iNjE0IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5pZ25vcmU8L3RleHQ+CiAgPHRleHQgY2xhc3M9InMiIHg9IjE0NSIgeT0iNjM0IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj7orrDljp/lm6DnoIHvvIzlpoIgbm90X2FfbWVtYmVyPC90ZXh0PgoKICA8cGF0aCBjbGFzcz0iZSIgZD0iTTQ3MCw1MzYgTDQzMCw1ODYiLz4KICA8dGV4dCBjbGFzcz0ibGFiIiB4PSI0MjAiIHk9IjU2NiIgdGV4dC1hbmNob3I9ImVuZCI+ZXhwbGljaXQ8L3RleHQ+CiAgPHJlY3QgY2xhc3M9ImxsbSIgeD0iMzAwIiB5PSI1ODgiIHdpZHRoPSIyNTAiIGhlaWdodD0iNzAiIHJ4PSIxMiIvPgogIDxyZWN0IGNsYXNzPSJsbG0yIiB4PSIzMDQiIHk9IjU5MiIgd2lkdGg9IjI0MiIgaGVpZ2h0PSI2MiIgcng9IjkiLz4KICA8dGV4dCBjbGFzcz0idCIgeD0iNDI1IiB5PSI2MTIiIHRleHQtYW5jaG9yPSJtaWRkbGUiPuS4uyBTZXNzaW9u77yab3JjaGVzdHJhdG9yX3JvdXRlPC90ZXh0PgogIDx0ZXh0IGNsYXNzPSJzIiB4PSI0MjUiIHk9IjYzMiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+YWNjZXB0IMK3IGF0dGFjaCDCtyBzdG9wIMK3IGlnbm9yZTwvdGV4dD4KICA8dGV4dCBjbGFzcz0icyIgeD0iNDI1IiB5PSI2NDgiIHRleHQtYW5jaG9yPSJtaWRkbGUiPuS4gOasoeiwg+eUqOWPr+aJuemHjyAx4oCTMjAg5p2hPC90ZXh0PgoKICA8cGF0aCBjbGFzcz0iZSIgZD0iTTYwMCw1MzYgTDcwMCw1ODYiLz4KICA8dGV4dCBjbGFzcz0ibGFiIiB4PSI2NjgiIHk9IjU1NiI+aW5mZXJyZWTvvIjmqKHlvI8g4omgIG9mZu+8iTwvdGV4dD4KICA8cmVjdCBjbGFzcz0ibGxtIiB4PSI1ODAiIHk9IjU4OCIgd2lkdGg9IjM4MCIgaGVpZ2h0PSI3MCIgcng9IjEyIi8+CiAgPHJlY3QgY2xhc3M9ImxsbTIiIHg9IjU4NCIgeT0iNTkyIiB3aWR0aD0iMzcyIiBoZWlnaHQ9IjYyIiByeD0iOSIvPgogIDx0ZXh0IGNsYXNzPSJ0IiB4PSI3NzAiIHk9IjYxMiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+5Li7IFNlc3Npb24g56CU5Yik77yab3JjaGVzdHJhdG9yX2V2YWw8L3RleHQ+CiAgPHRleHQgY2xhc3M9InMiIHg9Ijc3MCIgeT0iNjMyIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj7or7vmnInnlYznqpflj6PkuI7miKrlm77vvIzmr4/mnaHlkK/nlKjop4TliJnliKTkuIDmrKE8L3RleHQ+CiAgPHRleHQgY2xhc3M9InMiIHg9Ijc3MCIgeT0iNjQ4IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj7lv4Xpobvnu5nlh7ogZGlyZWN0aW9uIOS4jiBpbnRlbnRfZXZpZGVuY2U8L3RleHQ+CgogIDwhLS0gQm90dG9tIHJvdyAtLT4KICA8cGF0aCBjbGFzcz0iZSIgZD0iTTQyNSw2NTggTDQyNSw3MDAiLz4KICA8dGV4dCBjbGFzcz0ibGFiIiB4PSI0MzUiIHk9IjY4NCI+YWNjZXB0PC90ZXh0PgogIDxyZWN0IGNsYXNzPSJjb2RlIiB4PSIyNTAiIHk9IjcwMiIgd2lkdGg9IjMyMCIgaGVpZ2h0PSI2OCIvPgogIDx0ZXh0IGNsYXNzPSJ0IiB4PSI0MTAiIHk9IjcyNiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+5LiA5Liq5LqL5Yqh5YaF5bu65aW977yaPC90ZXh0PgogIDx0ZXh0IGNsYXNzPSJzIiB4PSI0MTAiIHk9Ijc0NiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+VGlja2V0ICsg5LiN5Y+v5Y+YIE1hbmRhdGUgKyDorqLpmIU8L3RleHQ+CiAgPHRleHQgY2xhc3M9InMiIHg9IjQxMCIgeT0iNzYyIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj4rIOW+heWQr+WKqOa0vuW3pSArIOaOkumYn+eahOehruiupOa2iOaBrzwvdGV4dD4KCiAgPHBhdGggY2xhc3M9ImUiIGQ9Ik02ODAsNjU4IEw2ODAsNzAwIi8+CiAgPHRleHQgY2xhc3M9ImxhYiIgeD0iNjkwIiB5PSI2ODQiPm9ic2VydmU8L3RleHQ+CiAgPHJlY3QgY2xhc3M9InJlYyIgeD0iNTkwIiB5PSI3MDIiIHdpZHRoPSIxODAiIGhlaWdodD0iNjgiLz4KICA8dGV4dCBjbGFzcz0idCIgeD0iNjgwIiB5PSI3MjgiIHRleHQtYW5jaG9yPSJtaWRkbGUiPuiusCBpZ25vcmU8L3RleHQ+CiAgPHRleHQgY2xhc3M9InMiIHg9IjY4MCIgeT0iNzQ4IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj4rIHdvdWxkX2FjY2VwdO+8jOS4jeWKqOaJizwvdGV4dD4KCiAgPHBhdGggY2xhc3M9ImUiIGQ9Ik04NzAsNjU4IEw4NzAsNzAwIi8+CiAgPHRleHQgY2xhc3M9ImxhYiIgeD0iODgwIiB5PSI2ODQiPmF1dG88L3RleHQ+CiAgPHJlY3QgY2xhc3M9ImNvZGUiIHg9Ijc4MCIgeT0iNzAyIiB3aWR0aD0iMTgwIiBoZWlnaHQ9IjY4Ii8+CiAgPHRleHQgY2xhc3M9InQiIHg9Ijg3MCIgeT0iNzI4IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj7lkIzlt6YgYWNjZXB0PC90ZXh0PgogIDx0ZXh0IGNsYXNzPSJzIiB4PSI4NzAiIHk9Ijc0OCIgdGV4dC1hbmNob3I9Im1pZGRsZSI+TWFuZGF0ZSDorrDkuIvljLnphY3op4TliJk8L3RleHQ+CgogIDx0ZXh0IGNsYXNzPSJzIiB4PSIyMCIgeT0iNzk4Ij7mlrnop5IgPSDku6PnoIEgwrcg5Y+M57q/5ZyG6KeSID0gTExNIMK3IOiZmue6v+ahhiA9IOWPquiusOW9leOAgeS4jeWKqOaJiyDCtyDnuqLoibLngrnliJLnur8gPSDnu5Xov4cgRXZhbCDnmoTpgqPmnaHot688L3RleHQ+Cjwvc3ZnPgo=" alt="图 2" /></p>
+<p><strong>图 2：已有工单的后续消息由该工单的执行器自己裁决，不经过
+Eval；其余消息先过纯代码的 Gate 得到强度，再交给路由 LLM。LLM 拿不到
+Gate 之外的任何授权；主动发现的工作在 observe
+模式下只记录，不动手。</strong></p>
+<p><strong>Gate
+的判定</strong>（<code>src/policy.ts:191</code>，“强度”分 explicit /
+inferred / 不准入）：</p>
+<table>
+<thead>
+<tr class="header">
+<th>情形</th>
+<th>强度</th>
+<th><code>basis.via</code></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>人，在名单上，@ 了机器人或私聊</td>
+<td>explicit</td>
+<td><code>addressed</code></td>
+</tr>
+<tr class="even">
+<td>准入表里这一格设为 explicit（比如支持群里任何人 @ 都算）</td>
+<td>explicit</td>
+<td><code>admission</code></td>
+</tr>
+<tr class="odd">
+<td>已有工单的 Thread 上的后续消息：发送者在名单内</td>
+<td>explicit</td>
+<td><code>followup</code></td>
+</tr>
+<tr class="even">
+<td>同上，发送者不在名单内，且接单模式不是 off</td>
+<td>inferred</td>
+<td><code>followup</code></td>
+</tr>
+<tr class="odd">
+<td>准入表这一格设为 inferred，且模式不是 off</td>
+<td>inferred</td>
+<td><code>admission</code> + <code>observation</code></td>
+</tr>
+<tr class="even">
+<td>名单上的 bot（@ 了机器人，或发在“全收”作用域）</td>
+<td>inferred（永远不能是 explicit，也不能 stop）</td>
+<td><code>bot</code></td>
+</tr>
+<tr class="odd">
+<td>其他</td>
+<td>不准入，记原因码：<code>not_a_member</code>、<code>admission_ignored</code>、<code>no_mention</code>、<code>not_human</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<p><strong>准入表</strong>是每个 Source
+的策略的一部分。行是接收作用域（某个飞书群、私聊、新
+Issue、评论、默认分支 CI……），每行三格：“名单内但没 @”“名单外但 @
+了”“名单外也没 @”，每格可选 explicit / inferred /
+ignore。默认值很保守：只有“名单内没 @”是 inferred，其余都是 ignore。没 @
+机器人的消息，只有在该作用域打开“全收”时才会查表。</p>
+<p><strong>接单模式</strong>：<code>off</code> /
+<code>observe</code>（默认）/ <code>auto</code>。observe
+下，主动研判的结论如果是“会接”，只记成
+<code>ignore + would_accept</code>，什么都不做。作者建议先在 observe
+跑一段时间，看过记录再切
+auto。这相当于给主动行为加了一个<strong>影子模式</strong>。</p>
+<p><strong>LLM 研判也被代码兜底</strong>（<code>src/policy.ts:40</code>
+的 <code>assessmentOutcome</code>）：</p>
+<ul>
+<li>主 Session 先调 <code>orchestrator_eval</code>
+拿到一个<strong>有界窗口</strong>：Trigger 正文最多 4,000 字符；线程前 5
+条加 Trigger 前后各 5 条；长消息截断到 400 或 1,200 字符；其余消息只给
+50 字符的存根；最多 8 个相关工单。截图可以按 id 读进会话。</li>
+<li>然后调
+<code>orchestrator_eval_decide</code>，并且<strong>必须对每条启用规则恰好表态一次</strong>（<code>matched</code>
+和理由），给出
+<code>direction</code>（<code>implementation_requested</code>、<code>target_basis</code>、<code>requires_design_decision</code>、<code>evidence</code>），接单时还要给
+<code>intent_evidence</code>，即三个事实加原文引用。</li>
+<li>代码会拒收没覆盖全部启用规则的答案。接单要同时满足：方向已定、至少命中一条规则、有证据。observe
+模式下即使全部满足，也只记“会接”。</li>
+</ul>
+<p>提示词对这个机制的定位很坦白：<em>“These declarations are your
+semantic judgments, not proof supplied by the schema.”</em>
+代码管的是<strong>形式</strong>（是否逐条表态、是否给了证据），<strong>内容</strong>是否真实仍取决于模型。</p>
+<p>**Mandate 的生命周期：**只有三个操作能改变它：accept 创建，人的 stop
+撤回，重验证失败吊销（<code>docs/002-authorization.md</code>）。</p>
+<ul>
+<li>工单结束不撤销
+Mandate。人在工单自己的线程上说一句话，工单就在<strong>同一
+Mandate</strong> 下复活，不需要新的
+Eval。复活前会做重验证（<code>src/policy.ts:213</code>）：Source
+还在听这个线程吗？发送者还在名单上吗？inferred 的工单要求模式仍是
+auto、匹配的规则仍启用。</li>
+<li><strong>策略变更不取消运行中的工单</strong>（取消会留下半成品），而是给受影响的工单投递一条
+<code>policy-changed</code>
+输入，告诉执行器哪条规则变了、新文本是什么；同时作废所有进行中的
+Eval，按新版本重排。</li>
+<li><strong>策略版本</strong> =
+<code>hash(规则, 接单模式, 各 Source 的策略部分，含 bot 名单)</code>（<code>src/policy.ts:116</code>）。</li>
+</ul>
+<p><strong>prompt
+的优先级金字塔</strong>（<code>docs/004-prompts.md</code>），从强到弱：</p>
+<ol type="1">
+<li>工具和宿主强制的事实：身份、权限、参数校验、回复用途、长度上限。prompt
+改不了。</li>
+<li>内置段和生成段，以及团队对它们的覆盖。</li>
+<li>主动工单所命中规则里的流程和沟通要求，只对该工单的执行器生效。</li>
+<li>团队段落和团队 skill。</li>
+<li>外部文本：消息、评论、文档、引用。它们只是数据，不能改变规则或授权。</li>
+</ol>
+<p>此外，inferred 工单的执行器会在 system prompt
+末尾多收到一段限制（<code>src/executor/dsh.ts:91</code>）：只允许单模块内的小改动；涉及公共接口、行为变化或产品决策就报告
+<code>dropped</code>，不许扩大范围。</p>
+<h3 id="43-状态确定性内核与先落盘再执行">4.3
+状态：确定性内核与“先落盘，再执行”</h3>
+<p><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDYwIDU2MCIgcm9sZT0iaW1nIiBhcmlhLWxhYmVsbGVkYnk9Imwxa3QgbDFrZCI+CiAgPHRpdGxlIGlkPSJsMWt0Ij7lhrPlrprlhYjokL3nm5jvvIzlho3miafooYzvvIhMMe+8muaUvuWkpyBMMCDnmoQgRW5naW5lIOS4jiBTUUxpdGXvvIk8L3RpdGxlPgogIDxkZXNjIGlkPSJsMWtkIj5FbmdpbmUg5Y+q5YaZ5pWw5o2u5bqT44CB5LiN5YGaIEkvT++8m+aJgOacieWvueWkluWKqOS9nOWFiOS9nOS4uiBlZmZlY3Qg6KGM5LiO6aKG5Z+f54q25oCB5Zyo5ZCM5LiA5LiqIFNRTGl0ZSDkuovliqHph4zmj5DkuqTvvIzmj5DkuqTlkI7nlLHluKblubblj5HkuIrpmZDlkozmjIfmlbDpgIDpgb/nmoTliIblj5HlmajmiafooYzvvJvpgILphY3lmajmiornu5PmnpzkvZzkuLrov4fljrvml7bnmoTkuovlrp7kuqTlm54gRW5naW5l77yM5byA5ZCv5paw55qE5LqL5Yqh44CC5bSp5rqD5oiW6YeN5ZCv5ZCO77yM5rKh5YGa5a6M55qE5LqL5LuN5Zyo6Zif5YiX6YeM44CCPC9kZXNjPgogIDxzdHlsZT4KICAgIHN2ZyB7IC0tYmc6I2ZmZmZmZjsgLS1pbms6IzFmMjMyODsgLS1tdXRlZDojNTc2MDZhOyAtLWNvZGUtZmlsbDojZjZmOGZhOyAtLWNvZGUtc3Ryb2tlOiMyNDI5MmY7IC0tbGxtLWZpbGw6I2ZmZjRlNTsgLS1sbG0tc3Ryb2tlOiNiMzU5MDA7CiAgICAgICAgICAtLWV4dC1maWxsOiNlZWY2ZmY7IC0tZXh0LXN0cm9rZTojMDk2OWRhOyAtLXN0b3JlLWZpbGw6I2VhZjdlZTsgLS1zdG9yZS1zdHJva2U6IzFhN2YzNzsgLS1lZGdlOiM0MjRhNTM7IC0tZnJhbWU6IzU3NjA2YTsKICAgICAgICAgIGZvbnQtZmFtaWx5OiAtYXBwbGUtc3lzdGVtLCBCbGlua01hY1N5c3RlbUZvbnQsICJQaW5nRmFuZyBTQyIsICJIaXJhZ2lubyBTYW5zIEdCIiwgIk5vdG8gU2FucyBDSksgU0MiLCAiU291cmNlIEhhbiBTYW5zIFNDIiwgIk1pY3Jvc29mdCBZYUhlaSIsICJXZW5RdWFuWWkgWmVuIEhlaSIsIHNhbnMtc2VyaWY7IH0KICAgIEBtZWRpYSAocHJlZmVycy1jb2xvci1zY2hlbWU6IGRhcmspIHsKICAgICAgc3ZnIHsgLS1iZzojMGQxMTE3OyAtLWluazojZTZlZGYzOyAtLW11dGVkOiM5ZGE3YjM7IC0tY29kZS1maWxsOiMxNjFiMjI7IC0tY29kZS1zdHJva2U6I2M5ZDFkOTsgLS1sbG0tZmlsbDojMmIxZDBjOyAtLWxsbS1zdHJva2U6I2YwYTE0YTsKICAgICAgICAgICAgLS1leHQtZmlsbDojMGMyMzQwOyAtLWV4dC1zdHJva2U6IzU4YTZmZjsgLS1zdG9yZS1maWxsOiMwZjJhMWE7IC0tc3RvcmUtc3Ryb2tlOiMzZmI5NTA7IC0tZWRnZTojYWRiYWM3OyAtLWZyYW1lOiM4Yjk0OWU7IH0KICAgIH0KICAgIC5iZyB7IGZpbGw6IHZhcigtLWJnKTsgfQogICAgLmNvZGUgeyBmaWxsOiB2YXIoLS1jb2RlLWZpbGwpOyBzdHJva2U6IHZhcigtLWNvZGUtc3Ryb2tlKTsgc3Ryb2tlLXdpZHRoOiAxLjU7IH0KICAgIC50eCB7IGZpbGw6IG5vbmU7IHN0cm9rZTogdmFyKC0tZnJhbWUpOyBzdHJva2Utd2lkdGg6IDI7IHN0cm9rZS1kYXNoYXJyYXk6IDEwIDU7IH0KICAgIC5sbG0geyBmaWxsOiB2YXIoLS1sbG0tZmlsbCk7IHN0cm9rZTogdmFyKC0tbGxtLXN0cm9rZSk7IHN0cm9rZS13aWR0aDogMS41OyB9CiAgICAuZXh0IHsgZmlsbDogdmFyKC0tZXh0LWZpbGwpOyBzdHJva2U6IHZhcigtLWV4dC1zdHJva2UpOyBzdHJva2Utd2lkdGg6IDEuNTsgfQogICAgLnN0b3JlIHsgZmlsbDogdmFyKC0tc3RvcmUtZmlsbCk7IHN0cm9rZTogdmFyKC0tc3RvcmUtc3Ryb2tlKTsgc3Ryb2tlLXdpZHRoOiAxLjU7IH0KICAgIC50IHsgZmlsbDogdmFyKC0taW5rKTsgZm9udC1zaXplOiAxNC41cHg7IGZvbnQtd2VpZ2h0OiA2MDA7IH0KICAgIC5zIHsgZmlsbDogdmFyKC0tbXV0ZWQpOyBmb250LXNpemU6IDEyLjVweDsgfQogICAgLmxhYiB7IGZpbGw6IHZhcigtLWluayk7IGZvbnQtc2l6ZTogMTIuNXB4OyB9CiAgICAuaCB7IGZpbGw6IHZhcigtLW11dGVkKTsgZm9udC1zaXplOiAxMi41cHg7IGZvbnQtd2VpZ2h0OiA2MDA7IH0KICAgIC5lIHsgc3Ryb2tlOiB2YXIoLS1lZGdlKTsgc3Ryb2tlLXdpZHRoOiAxLjY7IGZpbGw6IG5vbmU7IG1hcmtlci1lbmQ6IHVybCgjYXJyKTsgfQogICAgLmVhIHsgc3Ryb2tlOiB2YXIoLS1lZGdlKTsgc3Ryb2tlLXdpZHRoOiAxLjY7IGZpbGw6IG5vbmU7IHN0cm9rZS1kYXNoYXJyYXk6IDcgNTsgbWFya2VyLWVuZDogdXJsKCNhcnIpOyB9CiAgICAuYWggeyBmaWxsOiB2YXIoLS1lZGdlKTsgfQogIDwvc3R5bGU+CiAgPGRlZnM+CiAgICA8bWFya2VyIGlkPSJhcnIiIHZpZXdCb3g9IjAgMCAxMCAxMCIgcmVmWD0iOSIgcmVmWT0iNSIgbWFya2VyV2lkdGg9IjgiIG1hcmtlckhlaWdodD0iOCIgb3JpZW50PSJhdXRvLXN0YXJ0LXJldmVyc2UiPjxwYXRoIGNsYXNzPSJhaCIgZD0iTTAsMCBMMTAsNSBMMCwxMCB6Ii8+PC9tYXJrZXI+CiAgPC9kZWZzPgogIDxyZWN0IGNsYXNzPSJiZyIgeD0iMCIgeT0iMCIgd2lkdGg9IjEwNjAiIGhlaWdodD0iNTYwIi8+CgogIDwhLS0gQ2FsbGVycyAtLT4KICA8dGV4dCBjbGFzcz0iaCIgeD0iMjAiIHk9IjQwIj7osIPnlKjmlrnvvIjor7fmsYLnlKjnpYjkvb/lj6XvvIzlj6/ooqvmi5Lnu53vvIk8L3RleHQ+CiAgPHJlY3QgY2xhc3M9ImV4dCIgeD0iMjAiIHk9IjU2IiB3aWR0aD0iMjEwIiBoZWlnaHQ9IjQ4IiByeD0iMjQiLz4KICA8dGV4dCBjbGFzcz0idCIgeD0iMTI1IiB5PSI4NSIgdGV4dC1hbmNob3I9Im1pZGRsZSI+U291cmNl77yacmVjZWl2ZSgpPC90ZXh0PgogIDxyZWN0IGNsYXNzPSJsbG0iIHg9IjIwIiB5PSIxMjAiIHdpZHRoPSIyMTAiIGhlaWdodD0iNDgiIHJ4PSIxMiIvPgogIDx0ZXh0IGNsYXNzPSJ0IiB4PSIxMjUiIHk9IjE0OSIgdGV4dC1hbmNob3I9Im1pZGRsZSI+5Li7IFNlc3Npb27vvJpkZWNpZGUgLyBhdHRhY2g8L3RleHQ+CiAgPHJlY3QgY2xhc3M9ImxsbSIgeD0iMjAiIHk9IjE4NCIgd2lkdGg9IjIxMCIgaGVpZ2h0PSI0OCIgcng9IjEyIi8+CiAgPHRleHQgY2xhc3M9InQiIHg9IjEyNSIgeT0iMjEzIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj7miafooYzlmajvvJpyZXBvcnQgLyBoYW5kYmFjazwvdGV4dD4KICA8cmVjdCBjbGFzcz0iY29kZSIgeD0iMjAiIHk9IjI0OCIgd2lkdGg9IjIxMCIgaGVpZ2h0PSI0OCIvPgogIDx0ZXh0IGNsYXNzPSJ0IiB4PSIxMjUiIHk9IjI3NyIgdGV4dC1hbmNob3I9Im1pZGRsZSI+6Z2i5p2/77yac3RvcCAvIHJldHJ5PC90ZXh0PgogIDxwYXRoIGNsYXNzPSJlIiBkPSJNMjMwLDgwIEwyNzYsMTQwIi8+CiAgPHBhdGggY2xhc3M9ImUiIGQ9Ik0yMzAsMTQ0IEwyNzYsMTUwIi8+CiAgPHBhdGggY2xhc3M9ImUiIGQ9Ik0yMzAsMjA4IEwyNzYsMTYwIi8+CiAgPHBhdGggY2xhc3M9ImUiIGQ9Ik0yMzAsMjcyIEwyNzYsMTcwIi8+CgogIDwhLS0gVHJhbnNhY3Rpb24gZnJhbWUgLS0+CiAgPHJlY3QgY2xhc3M9InR4IiB4PSIyNjIiIHk9IjU2IiB3aWR0aD0iMzMwIiBoZWlnaHQ9IjM3MiIvPgogIDx0ZXh0IGNsYXNzPSJoIiB4PSIyNzYiIHk9Ijc4Ij7lkIzkuIDkuKogU1FMaXRlIOS6i+WKoTwvdGV4dD4KICA8cmVjdCBjbGFzcz0iY29kZSIgeD0iMjc4IiB5PSIxMDQiIHdpZHRoPSIyOTgiIGhlaWdodD0iODQiLz4KICA8dGV4dCBjbGFzcz0idCIgeD0iNDI3IiB5PSIxMzIiIHRleHQtYW5jaG9yPSJtaWRkbGUiPkVuZ2luZSDlkb3ku6Q8L3RleHQ+CiAgPHRleHQgY2xhc3M9InMiIHg9IjQyNyIgeT0iMTU0IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj7lkIzmraXmiafooYwgwrcg5pegIEkvTyDCtyDllK/kuIDlhpnogIU8L3RleHQ+CiAgPHRleHQgY2xhc3M9InMiIHg9IjQyNyIgeT0iMTcyIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj7pnZ7ms5Xor7fmsYLmipsgVXNlckVycm9y77yM5pW05L2T5Zue5ruaPC90ZXh0PgogIDxwYXRoIGNsYXNzPSJlIiBkPSJNMzQ4LDE4OCBMMzQ4LDIzMiIvPgogIDxwYXRoIGNsYXNzPSJlIiBkPSJNNTA2LDE4OCBMNTA2LDIzMiIvPgogIDx0ZXh0IGNsYXNzPSJsYWIiIHg9IjM1OCIgeT0iMjE0Ij7lhpk8L3RleHQ+CiAgPHRleHQgY2xhc3M9ImxhYiIgeD0iNTE2IiB5PSIyMTQiPmVucXVldWU8L3RleHQ+CgogIDxwYXRoIGNsYXNzPSJzdG9yZSIgZD0iTTI3OCwyNDYgYTcwLDEwIDAgMCwxIDE0MCwwIHYxMjAgYTcwLDEwIDAgMCwxIC0xNDAsMCB6Ii8+CiAgPHBhdGggY2xhc3M9InN0b3JlIiBkPSJNMjc4LDI0NiBhNzAsMTAgMCAwLDAgMTQwLDAiIHN0eWxlPSJmaWxsOm5vbmUiLz4KICA8dGV4dCBjbGFzcz0idCIgeD0iMzQ4IiB5PSIyOTAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPumihuWfn+eKtuaAgTwvdGV4dD4KICA8dGV4dCBjbGFzcz0icyIgeD0iMzQ4IiB5PSIzMTIiIHRleHQtYW5jaG9yPSJtaWRkbGUiPnRyaWdnZXIgwrcgdGhyZWFkPC90ZXh0PgogIDx0ZXh0IGNsYXNzPSJzIiB4PSIzNDgiIHk9IjMzMCIgdGV4dC1hbmNob3I9Im1pZGRsZSI+dGlja2V0IMK3IGRlY2lzaW9uPC90ZXh0PgogIDx0ZXh0IGNsYXNzPSJzIiB4PSIzNDgiIHk9IjM0OCIgdGV4dC1hbmNob3I9Im1pZGRsZSI+ZGlzcG9zaXRpb248L3RleHQ+CgogIDxwYXRoIGNsYXNzPSJzdG9yZSIgZD0iTTQzMiwyNDYgYTc0LDEwIDAgMCwxIDE0OCwwIHYxMjAgYTc0LDEwIDAgMCwxIC0xNDgsMCB6Ii8+CiAgPHBhdGggY2xhc3M9InN0b3JlIiBkPSJNNDMyLDI0NiBhNzQsMTAgMCAwLDAgMTQ4LDAiIHN0eWxlPSJmaWxsOm5vbmUiLz4KICA8dGV4dCBjbGFzcz0idCIgeD0iNTA2IiB5PSIyOTAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPmVmZmVjdCDpmJ/liJc8L3RleHQ+CiAgPHRleHQgY2xhc3M9InMiIHg9IjUwNiIgeT0iMzEyIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj7mr48gKGtpbmQsIGtleSkg5LiA6KGMPC90ZXh0PgogIDx0ZXh0IGNsYXNzPSJzIiB4PSI1MDYiIHk9IjMzMCIgdGV4dC1hbmNob3I9Im1pZGRsZSI+5ZCMIGtleSDlkIjlubbjgIHkv53nlZnmrKHluo88L3RleHQ+CiAgPHRleHQgY2xhc3M9InMiIHg9IjUwNiIgeT0iMzQ4IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj4rIG91dGJveCDlm57miac8L3RleHQ+CgogIDwhLS0gRGlzcGF0Y2hlciAtLT4KICA8cGF0aCBjbGFzcz0iZSIgZD0iTTU4MCwzMDYgTDYzMCwzMDYiLz4KICA8cmVjdCBjbGFzcz0iY29kZSIgeD0iNjMyIiB5PSIyMzYiIHdpZHRoPSIxNzAiIGhlaWdodD0iMTQwIi8+CiAgPHRleHQgY2xhc3M9InQiIHg9IjcxNyIgeT0iMjYyIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5FZmZlY3RzIOWIhuWPkeWZqDwvdGV4dD4KICA8dGV4dCBjbGFzcz0iaCIgeD0iNzE3IiB5PSIyMjgiIHRleHQtYW5jaG9yPSJtaWRkbGUiPuS6i+WKoeaPkOS6pOWQjuaJjei/kOihjDwvdGV4dD4KICA8dGV4dCBjbGFzcz0icyIgeD0iNzE3IiB5PSIyODgiIHRleHQtYW5jaG9yPSJtaWRkbGUiPuaMiSBraW5kIOeahOW5tuWPkeS4iumZkDwvdGV4dD4KICA8dGV4dCBjbGFzcz0icyIgeD0iNzE3IiB5PSIzMDYiIHRleHQtYW5jaG9yPSJtaWRkbGUiPuWksei0peaMh+aVsOmAgOmBvzwvdGV4dD4KICA8dGV4dCBjbGFzcz0icyIgeD0iNzE3IiB5PSIzMjQiIHRleHQtYW5jaG9yPSJtaWRkbGUiPui/nue7rSAzIOasoeWksei0peaJjeaKpeitpjwvdGV4dD4KICA8dGV4dCBjbGFzcz0icyIgeD0iNzE3IiB5PSIzNDIiIHRleHQtYW5jaG9yPSJtaWRkbGUiPuanvea7oSAvIOaaguWBnO+8mkxhdGVy77yMPC90ZXh0PgogIDx0ZXh0IGNsYXNzPSJzIiB4PSI3MTciIHk9IjM2MCIgdGV4dC1hbmNob3I9Im1pZGRsZSI+5o6o6L+f5L2G5LiN6K6h5aSx6LSlPC90ZXh0PgoKICA8IS0tIEhhbmRsZXJzIC0tPgogIDx0ZXh0IGNsYXNzPSJoIiB4PSI4NDIiIHk9IjQwIj7mj5DkuqTlkI7miY3lj5HnlJ/nmoTlia/kvZznlKg8L3RleHQ+CiAgPGc+CiAgICA8cmVjdCBjbGFzcz0iY29kZSIgeD0iODQyIiB5PSI1MiIgd2lkdGg9IjIwMCIgaGVpZ2h0PSI1NCIvPgogICAgPHRleHQgY2xhc3M9InQiIHg9Ijg1MiIgeT0iNzQiPmFzc2Vzc21lbnQ8L3RleHQ+CiAgICA8dGV4dCBjbGFzcz0icyIgeD0iODUyIiB5PSI5NCI+5YCZ6YCJ5Y2h54mHIHN0ZWVyIOi/m+S4uyBTZXNzaW9uPC90ZXh0PgogICAgPHJlY3QgY2xhc3M9ImNvZGUiIHg9Ijg0MiIgeT0iMTE2IiB3aWR0aD0iMjAwIiBoZWlnaHQ9IjU0Ii8+CiAgICA8dGV4dCBjbGFzcz0idCIgeD0iODUyIiB5PSIxMzgiPmxhdW5jaDwvdGV4dD4KICAgIDx0ZXh0IGNsYXNzPSJzIiB4PSI4NTIiIHk9IjE1OCI+d29ya3RyZWUgKyDmiafooYzlmaggU2Vzc2lvbjwvdGV4dD4KICAgIDxyZWN0IGNsYXNzPSJjb2RlIiB4PSI4NDIiIHk9IjE4MCIgd2lkdGg9IjIwMCIgaGVpZ2h0PSI1NCIvPgogICAgPHRleHQgY2xhc3M9InQiIHg9Ijg1MiIgeT0iMjAyIj5kZWxpdmVyeTwvdGV4dD4KICAgIDx0ZXh0IGNsYXNzPSJzIiB4PSI4NTIiIHk9IjIyMiI+SW5wdXRzIOaMieW6jyBzdGVlciDnu5nmiafooYzlmag8L3RleHQ+CiAgICA8cmVjdCBjbGFzcz0iY29kZSIgeD0iODQyIiB5PSIyNDQiIHdpZHRoPSIyMDAiIGhlaWdodD0iNTQiLz4KICAgIDx0ZXh0IGNsYXNzPSJ0IiB4PSI4NTIiIHk9IjI2NiI+cmVsYXnvvIjmnInluo/vvIk8L3RleHQ+CiAgICA8dGV4dCBjbGFzcz0icyIgeD0iODUyIiB5PSIyODYiPuaKpeWRiiAvIOaPkOmXriBzdGVlciDnu5nkuLsgU2Vzc2lvbjwvdGV4dD4KICAgIDxyZWN0IGNsYXNzPSJjb2RlIiB4PSI4NDIiIHk9IjMwOCIgd2lkdGg9IjIwMCIgaGVpZ2h0PSI1NCIvPgogICAgPHRleHQgY2xhc3M9InQiIHg9Ijg1MiIgeT0iMzMwIj5ub3RpY2XvvIjmnInluo/vvIk8L3RleHQ+CiAgICA8dGV4dCBjbGFzcz0icyIgeD0iODUyIiB5PSIzNTAiPmluamVjdO+8jOS4jeWUpOmGkuS4uyBTZXNzaW9uPC90ZXh0PgogICAgPHJlY3QgY2xhc3M9ImNvZGUiIHg9Ijg0MiIgeT0iMzcyIiB3aWR0aD0iMjAwIiBoZWlnaHQ9IjU0Ii8+CiAgICA8dGV4dCBjbGFzcz0idCIgeD0iODUyIiB5PSIzOTQiPnJlcGx5PC90ZXh0PgogICAgPHRleHQgY2xhc3M9InMiIHg9Ijg1MiIgeT0iNDE0Ij7lkIzlt6XljZXlkIzlr7nor53kv53luo/vvIw1IHPihpIzMDAgczwvdGV4dD4KICA8L2c+CiAgPHBhdGggY2xhc3M9ImVhIiBkPSJNODAyLDI1OCBMODQwLDgwIi8+CiAgPHBhdGggY2xhc3M9ImVhIiBkPSJNODAyLDI3MCBMODQwLDE0MyIvPgogIDxwYXRoIGNsYXNzPSJlYSIgZD0iTTgwMiwyODUgTDg0MCwyMDciLz4KICA8cGF0aCBjbGFzcz0iZWEiIGQ9Ik04MDIsMzAwIEw4NDAsMjcxIi8+CiAgPHBhdGggY2xhc3M9ImVhIiBkPSJNODAyLDMzMCBMODQwLDMzNSIvPgogIDxwYXRoIGNsYXNzPSJlYSIgZD0iTTgwMiwzNjAgTDg0MCwzOTkiLz4KCiAgPCEtLSBGZWVkYmFjayBmYWN0cyAtLT4KICA8cGF0aCBjbGFzcz0iZSIgZD0iTTk0Miw0MjYgTDk0Miw0NzggTDQyNyw0NzggTDQyNyw0MzAiLz4KICA8dGV4dCBjbGFzcz0ibGFiIiB4PSI2ODQiIHk9IjUwMCIgdGV4dC1hbmNob3I9Im1pZGRsZSI+6YCC6YWN5Zmo5oqK57uT5p6c5L2c5Li64oCc6L+H5Y675pe255qE5LqL5a6e4oCd5Lqk5Zue77yaYXNzaWdubWVudFN0YXJ0ZWQgwrcgaW5wdXRzRGVsaXZlcmVkIMK3IGRlbGl2ZXJ5RmFpbGVkIMK3IHR1cm5FbmRlZDwvdGV4dD4KICA8dGV4dCBjbGFzcz0ibGFiIiB4PSI2ODQiIHk9IjUxOCIgdGV4dC1hbmNob3I9Im1pZGRsZSI+5q+P5Liq5LqL5a6e5byA5ZCv5LiA5Liq5paw5LqL5Yqh77yb5bSp5rqD5Y+R55Sf5Zyo5Lu75L2V5LiA5q2l77yM5pyq5a6M5oiQ55qEIGVmZmVjdCDooYzpg73ov5jlnKg8L3RleHQ+Cjwvc3ZnPgo=" alt="图 3" /></p>
+<p><strong>图 3：Engine 只写数据库，不做 I/O。每个对外动作先作为 effect
+行，与领域状态在同一个 SQLite
+事务里提交，提交后由带并发上限和指数退避的分发器执行。适配器把结果作为过去时的“事实”交回
+Engine，开启新的事务。</strong></p>
+<p><strong>Engine（<code>src/core/engine.ts:24</code>）的几条硬规矩：</strong></p>
+<ul>
+<li><strong>唯一写者。</strong>
+Trigger、Thread、Decision、Ticket、Assignment 只有 Engine
+能写；其他状态各有唯一写者（Source 写自己的读位置，Settings
+写配置，Effects 写 effect 行，Outbox 写回执……）。</li>
+<li><strong>同步、无 I/O。</strong> <code>src/core</code> 除了 Node
+的哈希不引入任何外部依赖。每条命令一个事务；端口（<code>Executor.start</code>、<code>Outbox.send</code>
+等）<strong>只在事务里排队</strong>，提交后才由适配器执行。</li>
+<li><strong>按角色裁剪接口。</strong> 调用方拿到的是
+<code>Pick&lt;Engine, …&gt;</code>：<code>EngineForSources</code> 只有
+<code>receive / bindThread / threadClosed</code>，<code>EngineForExecutor</code>
+只有 report、handback 之类。Source 在类型层面就调不到
+<code>decide()</code>。</li>
+<li><strong>驱动它的时钟。</strong> <code>Passes</code> 每 2
+秒跑一轮，有新事件或命令时立即补一轮；每轮先执行到期的
+effect，再推进评估（<code>evaluateDue</code>），并且同一时刻只跑一轮。</li>
+<li><strong>命名即语义。</strong>
+请求用祈使句（<code>stopTicket</code>、<code>bindThread</code>），可以被拒绝；事实用过去时（<code>assignmentStarted</code>、<code>deliveryFailed</code>），记录已经发生的事。</li>
+<li><strong>内部 5 个部件，单向依赖。</strong> Intake → Tickets；Evals →
+Tickets；Assignments → Tickets 和 Replies；Tickets → Replies；Replies
+不依赖任何部件。</li>
+</ul>
+<p><strong>Effects
+持久队列</strong>（<code>src/app/effects.ts</code>）有 6 种 kind。表里的
+steer、queue、inject 是 DSH 会话 inbox 的三种投递方式：steer
+在对方下一个 step 边界插入，queue 开一个新 turn，inject
+只附加上下文、不唤醒对方（§8.1 详述）。</p>
+<table>
+<thead>
+<tr class="header">
+<th>kind</th>
+<th>做什么</th>
+<th>并发 / 重试</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>assessment</code></td>
+<td>把候选卡片 steer 进主 Session，之后才开始计评估截止时间</td>
+<td>4 个；2 s 起翻倍到 60 s</td>
+</tr>
+<tr class="even">
+<td><code>launch</code></td>
+<td>准备目录、建执行器会话、发第一条派工消息</td>
+<td>受空闲工位数限制；瞬时故障重试 3 次</td>
+</tr>
+<tr class="odd">
+<td><code>delivery</code></td>
+<td>把工单的待投递 Inputs 按序 steer 给运行中的执行器</td>
+<td>4 个；2 s → 60 s</td>
+</tr>
+<tr class="even">
+<td><code>relay</code></td>
+<td>把执行器的报告或提问、人的后续消息 steer 给主 Session</td>
+<td>1 个，严格有序</td>
+</tr>
+<tr class="odd">
+<td><code>notice</code></td>
+<td>把通知 inject 给主 Session，不唤醒它</td>
+<td>1 个，严格有序</td>
+</tr>
+<tr class="even">
+<td><code>reply</code></td>
+<td>通过 Source 的 Channel 发消息；同工单、同对话保序</td>
+<td>1 个；5 s → 300 s</td>
+</tr>
+</tbody>
+</table>
+<p>每个 <code>(kind, key)</code> 只有一行，同 key 再次入队会合并 payload
+并保留原来的位置。工位满或处理暂停时抛
+<code>Later</code>：推迟执行，但不计失败。同一项连续失败 3
+次才报警。</p>
+<p><strong>工单阶段</strong>（<code>src/core/stage.ts</code>）按自上而下、第一条命中即为结果的规则定义。它回答一个问题：<strong>这个工单在等谁？</strong></p>
+<table>
+<thead>
+<tr class="header">
+<th>阶段</th>
+<th>条件</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>person / delivery</td>
+<td>输入投递失败（会重试）</td>
+</tr>
+<tr class="even">
+<td>person / answer</td>
+<td>有一个等人回答的结构化问题</td>
+</tr>
+<tr class="odd">
+<td>person / review</td>
+<td>最新报告是 <code>ready</code></td>
+</tr>
+<tr class="even">
+<td>person / blocked、failed</td>
+<td>最新报告是 blocked 或 failed，且之后没有人的消息</td>
+</tr>
+<tr class="odd">
+<td>working / queued</td>
+<td>还没有派工，或派工待启动</td>
+</tr>
+<tr class="even">
+<td>idle</td>
+<td>最新报告是 <code>waiting</code>，或派工已结束</td>
+</tr>
+<tr class="odd">
+<td>working</td>
+<td>其他情况</td>
+</tr>
+</tbody>
+</table>
+<p><strong>工单怎么结束：</strong><code>ready</code> 且没有 PR
+时，结束为
+completed；<code>dropped</code>（不可复现、已被别处解决之类）时静默结束；有
+PR 时，等到<strong>它自己开的 PR 都不再
+open</strong>，按最后一次关闭的结果结束为 <code>merged</code> 或
+<code>closed</code>。结束后订阅保留，人的下一条消息可以复活它。</p>
+<p><strong>没有消息会被悄悄吞掉。<strong>执行器会话把某条输入真正读进历史时（DSH
+的 <code>user/message</code> 事件），Engine 记
+<code>inputsRead</code>。工单结束时，没读到、没确认、没回答、也没交回的人类消息</strong>回流到
+Eval</strong>（<code>docs/003-execution.md</code>）。“谢谢”这类读过但无需处理的消息不回流。</p>
+<p><strong>存储细节：<strong>单个 SQLite
+文件。<code>ticket.open</code>、<code>thread.active</code>
+等是</strong>生成列</strong>并建了索引，所以每 2
+秒一轮的扫描只读活跃工作。代价是：<strong>目前没有任何清理</strong>，Trigger、Decision、已结束工单、回执和每个配置版本都会无限增长（<code>docs/007-architecture.md</code>
+的 Persistence 一节）。</p>
+<h3 id="44-执行一工单一会话一目录">4.4 执行：一工单一会话一目录</h3>
+<ul>
+<li><strong>会话与目录。</strong> 每个工单一个 DSH 会话
+<code>worker-&lt;ticket id&gt;</code>，一个目录
+<code>&lt;root&gt;/&lt;短名&gt;</code>。首次派工前，在执行根目录下用
+<code>sh</code> 跑一次 prepare 命令（限时 10 分钟），典型做法是
+<code>git worktree add</code>。PR 分支名的最后一段等于工单短名，PR
+才算这个工单的（<code>src/sources/github-pull.ts</code> 的
+<code>claimPull</code>）。</li>
+<li><strong>执行器
+preset</strong>（<code>cordis.patch.yml</code>）。它是 DSH
+<code>standard</code> 的裁剪版：去掉向人提问、展示、plan
+模式、插件管理、调度、goal、workflow、web fetch 和 fork 子
+agent；<strong>前台 shell 命令超过 5 秒自动转后台 job，job 等待也最多 5
+秒</strong>；带上下文压缩和工具结果裁剪（超过 8,192 字符时保留头
+4,096、尾 1,024）。5 秒是为了让执行器能在<strong>下一个 step
+边界</strong>收到人的新消息（DSH 的 steer
+语义），而不是被一个长命令卡住。</li>
+<li><strong>工具。</strong> 执行器只有 6
+个应用工具：<code>orchestrator_read</code>、<code>_ack</code>、<code>_report</code>、<code>_thread_unrelated</code>、<code>_thread_follow</code>、<code>_trigger_handback</code>。另外从
+DSH 白名单保留了文件、搜索、shell、job、web search、skill、todo 和
+subagent
+工具（<code>src/app/sessions.ts:61</code>）。工单结束后所有工具调用都被拒绝。</li>
+<li><strong>工位</strong>（<code>src/executor/dsh.ts:171</code> 的
+<code>WorkerSlots</code>）。默认
+<code>maxWorkers = 3</code>，另外<strong>给人的消息和状态查询留 1
+个额外工位</strong>，而且唤醒优先于新启动。所以新工作永远挤不掉“人在推进一个已有工单”。</li>
+<li><strong>后台工作。</strong> 一个 turn 结束时还有 shell job 或
+subagent 在跑，工单保留工位、仍算 working；job
+跑完会把结果带着唤醒执行器。后台工作最长 30 分钟，超时杀掉 job 并报告
+waiting。交给人处理时（ready、提问、blocked、failed）立即释放工位。</li>
+<li><strong>失败处理。</strong> 瞬时故障（HTTP
+408、429、5xx，连接被拒、重置、超时）重试 3 次：启动类故障用 effect
+退避；turn 失败则在 15、30、60 秒后发“继续”消息。其他失败记为
+failed，工单进入“等人”（<code>waitsForPerson</code>）：CI 和 bot
+消息照常记录但不投递、不唤醒；工具仍然可用，人可以直接进会话接手。人的一条消息、一次重试或一份非
+blocked/failed 的新报告会解除等待。</li>
+<li><strong>重启。</strong> 正在运行的派工以“host
+restarted”结束，新派工带一段恢复说明：<em>先检查目录、git 历史和
+GitHub，再决定是否重复任何对外动作</em>。按最老的工单先恢复。</li>
+<li><strong>主 Session
+的纪律</strong>（<code>src/app/sessions.ts:77</code> 的
+<code>noWait</code> guard）。拒绝出现在命令位置的
+<code>sleep</code>、超过 30 秒的 shell 超时、超过 5 秒的 job
+等待，理由是 <em>“a blocked step delays new candidates”</em>。主 Session
+用路由 preset：没有 subagent、没有 web、不能写文件。它有 14
+个工具；路由备注最多 30 词；不许改写需求、加实现计划或验收标准。</li>
+<li><strong>对人说话。</strong>
+发言是<strong>有用途的写操作</strong>，每种用途由代码检查前置条件（<code>src/core/replies.ts</code>）：<code>acknowledgement</code>（只能确认人的、已到达本工单的消息）、<code>answer</code>（必须对应一个人的问题，且执行器报告过答案）、<code>result</code>（工单必须已
+ready、completed、merged 或
+dropped）、<code>attention</code>（必须是当前那个结构化问题）。IM
+消息在传输层有 100 词硬上限，中文按分词计。GitHub 上的每条消息默认以
+“This is by an automated agent, not a human”
+开头（团队沟通段可改）。</li>
+<li><strong>外部看门狗。</strong> 在<strong>另一个</strong> DSH profile
+里建一个每小时运行的定时 agent，执行
+<code>scripts/dsh-superagent status</code>，按退出码处理：0 不说话，1
+重启，2 或 3
+汇报不重启（<code>docs/006-deployment.md</code>）。也就是由一个 agent
+看守另一个 agent。</li>
+</ul>
+<hr />
+<h2 id="5-三条真实-trace">5. 三条真实 trace</h2>
+<h3 id="trace-a一个明确的-github-请求从--到合并">Trace A：一个明确的
+GitHub 请求，从 @ 到合并</h3>
+<blockquote>
+<p>名单内的 alice 在 Issue #42 评论：“@agent 把设置页的 Save changes
+按钮改成 Save。”</p>
+</blockquote>
+<ol type="1">
+<li><strong>触发。</strong> GitHub Source 的轮询读到 notification，取
+#42 的新评论，翻译成
+<code>Trigger{threads:[github:42], human:true, addressed:'mention', channel:…}</code>，调用
+<code>Engine.receive</code>（<code>src/core/intake.ts:19</code>）。Trigger
+只存一次；Thread <code>github:42</code> 没有订阅者，于是进入 Eval
+队列。</li>
+<li><strong>授权。</strong> 2 秒内的下一轮 pass 调
+<code>evaluateDue</code>。Gate 判定 alice 在名单内且 @ 了机器人，结果是
+explicit，<code>basis.via = addressed</code>。新建一个
+Evaluation，并入队一个 <code>assessment</code> effect，把候选卡片 steer
+进主 Session，从这一刻开始计 120 秒截止。</li>
+<li><strong>分诊。</strong> 主 Session 一次调用
+<code>orchestrator_route([{kind:'accept', trigger_id, title, worktree_name:'save-label', acknowledgement:'On it: changing …'}])</code>。Engine
+在<strong>一个事务</strong>里写入：Decision(accept)、不可变
+Mandate、Ticket、待启动的 Assignment、对 <code>github:42</code> 的
+Subscription，以及排队的确认消息。</li>
+<li><strong>执行。</strong> 提交后，<code>reply</code> effect 在 #42
+下发出确认；<code>launch</code> effect 占一个工位，跑
+prepare（<code>git worktree add …/save-label</code>），建
+<code>worker-&lt;id&gt;</code> 会话，按 queue
+模式发第一条派工消息（标题、≤1,500 字符的派工文本、原始 Trigger
+卡片）。</li>
+<li><strong>执行器内部</strong>是 DSH 的 ReAct
+循环：读代码、改、跑测试（超过 5 秒自动转后台），推分支，开 PR
+#57，然后立即
+<code>orchestrator_report(state:'progress', pr_number:57)</code>。<code>claimPull</code>
+校验 PR 作者和分支名后执行
+<code>bindThread(github:57, own)</code>，工单开始订阅 PR 线程。这次
+progress 报告<strong>不通知任何人</strong>。</li>
+<li><strong>后续。</strong> PR #57 上的 CI 失败、bot review 都以 Trigger
+的形式扇出给工单（不经 Eval），执行器被唤醒、修复、静默 resolve 已修好的
+review thread。对同一个自动 reviewer，每个 PR 最多处理 3 轮。</li>
+<li><strong>交付。</strong> 执行器报告 <code>ready</code> 和 PR
+链接，<code>reportRelay</code> 把它 steer 给主 Session。工单阶段变为
+person / review（等待评审）。主 Session 在工单的原始对话（这里是 Issue
+#42）里交付一句结果和 PR
+链接；如果工单来自飞书，结果必须发回飞书，不能用一条 GitHub
+评论代替。</li>
+<li><strong>终止。</strong> 人合并 PR #57，GitHub Source 观察到后调用
+<code>threadClosed(github:57, 'merged')</code>。工单满足“自己开的 PR
+都已关闭”的条件，结束为
+<code>merged</code>。如果工单有飞书渠道，那里会收到一条结束通知；GitHub
+上 PR 本身已经显示了结果，不再重复。订阅保留：alice 一周后在 #57
+下说“标题也改一下”，工单会在同一 Mandate 下复活，前提是重验证通过。</li>
+</ol>
+<h3 id="trace-b飞书群里的主动发现先影子模式再放权">Trace
+B：飞书群里的主动发现，先影子模式，再放权</h3>
+<blockquote>
+<p>一个设为“全收”的飞书群。bob（名单内）发截图：“这个按钮文案有点怪”；carol
+回复：“就叫 ‘Save’ 吧”。没有人 @ 机器人。</p>
+</blockquote>
+<ol type="1">
+<li>两条消息都是 Trigger，属于同一话题 Thread，合成一批。Gate
+判定：名单内、未 @、作用域全收，准入表这一格默认 inferred，所以是
+<strong>inferred</strong> 候选。</li>
+<li>主 Session 判断卡片可能命中规则，于是调
+<code>orchestrator_eval</code>，拿到线程窗口，并读入截图（<code>orchestrator_eval_read</code>）。</li>
+<li><code>orchestrator_eval_decide</code>：对 <code>copy</code> 规则
+matched=true，对 <code>visual</code> 规则
+matched=false；<code>direction</code>
+为已请求实现、目标明确（“Save”）、无需设计决策；<code>intent_evidence</code>
+引用两人原话。按提示词，这正是“简短同意也能确认一个具体提案”的例子。</li>
+<li><code>assessmentOutcome</code>：形式检查全部通过，但模式是
+<strong>observe</strong>，于是记为
+<code>ignore + would_accept + proposal</code>。<strong>什么都没发生。</strong>
+群里没有任何回复。</li>
+<li>运维在面板的 Eval 页看过一周的 would_accept
+记录，认为判断靠谱，把模式切到 auto。策略版本随之变化，所有进行中的 Eval
+作废重排。</li>
+<li>下次类似讨论被接单：Mandate 的强度是
+inferred，<code>basis.rules = ['copy']</code>。执行器的 system prompt
+末尾多了“有限主动授权”那段，派工文本写明命中的规则及其指令。</li>
+<li>之后运维又关掉了 <code>copy</code> 规则。<code>policyEffects</code>
+算出这个工单受影响，投递一条 <code>policy-changed</code> 输入：<em>“Rule
+Copy fixes … no longer applies: finish only a change within it, or
+report dropped.”</em> 工单<strong>不会被强行取消</strong>。</li>
+</ol>
+<h3 id="trace-c越界的后续消息叫停与重启">Trace
+C：越界的后续消息、叫停与重启</h3>
+<ol type="1">
+<li>PR #57 处于“等待评审”时，名单内的 dave 在 PR 下评论：“顺便把 header
+颜色也改成蓝色。”Intake 发现 <code>github:57</code>
+被工单订阅，消息由人发出，而且落在工单自己的线程上：<code>followupOwners = [该工单]</code>，<strong>不入
+Eval 队列</strong>。主 Session 只收到一条 <code>follow_up</code>
+通知，提示词规定它对此只能发起 stop。</li>
+<li>执行器被唤醒（工位满时可以用给人预留的那个额外工位），判断改颜色超出“改按钮文案”的范围，调
+<code>orchestrator_trigger_handback(reason)</code>。这条消息带着理由重新进入
+Eval，主 Session 看到的卡片上有
+<code>handed_back</code>，可以把它开成新工单，也可以忽略，但<strong>不能再
+attach 回原工单</strong>。</li>
+<li>dave 接着说“算了，这个工单先停下”。这条消息同样直达执行器，主
+Session 收到 <code>follow_up</code> 通知后，按人的要求用
+<code>orchestrator_route</code> 发起 <code>stop</code>。stop 仍要过
+Gate，强度必须是 explicit（dave 在名单内，后续消息的强度就是
+explicit）；执行器自己不能声明“人让我停”。工单以 <code>stopped</code>
+结束，Mandate 被撤回，之后<strong>不再接收任何消息</strong>。</li>
+<li>假设第 1 步时进程刚好重启：仍在运行的派工以“host
+restarted”结束，新派工带恢复说明，执行器先检查 worktree、git 历史和 PR
+状态再继续。已经投递给旧派工但没被会话读入历史的输入，会重新投递给新派工，并清掉会话里残留的副本，<strong>只保留一份</strong>。</li>
+</ol>
+<hr />
+<h2 id="6-关键-insight作者押对的几个非显然判断">6. 关键
+insight：作者押对的几个非显然判断</h2>
+<ol type="1">
+<li><strong>状态不放在上下文里。</strong> 大多数多 agent 系统让
+orchestrator LLM
+记住“谁在做什么”。他们把协调状态全部放进一个同步、单写者的领域内核，LLM
+只能通过窄工具<strong>请求</strong>变更，而且请求可以被拒绝。原因是常驻系统一定会经历三件事：上下文压缩、进程重启、人在中途插手，只有数据库能跨过这三件事。</li>
+<li><strong>授权不写在 prompt 里。</strong> 大多数人在 system prompt
+里规定“只听谁的”。他们把准入做成纯代码 Gate，把接单结果固化成不可变
+Mandate，并规定 prompt 只能收紧、不能放宽。原因是 agent
+读到的每条评论、每份文档都是不可信输入，权限一旦存在于文本通道，就能被文本改写。</li>
+<li><strong>路由器不许“帮忙”。</strong> 大多数 orchestrator
+会把需求改写成计划再交给 worker。他们明令禁止：路由备注 ≤30
+词，执行器必须读原始来源。提示词原话：<em>“Routing does not authorize
+rewriting the request … Workers derive requirements from the original
+source.”</em>
+原因有二：转述会丢约束、凭空加需求，像传话游戏；路由器读得越多就越慢，而它是全系统唯一的串行点。</li>
+<li><strong>后续消息不回到路由器。</strong> 直觉做法是所有消息都先过
+orchestrator
+再分发。他们让订阅线程上人的消息直达工单执行器，由执行器决定收下（ack）还是交回（handback）。原因是这个工单的上下文已经在执行器里，路由器只需要知道（follow_up
+通知），并且只保留叫停权。</li>
+<li><strong>终止条件是外部事实。</strong> ReAct
+的“完成”由模型宣布。这里只要工单有 PR，“完成”就是 PR 被合并或关闭，由
+Source 观察到；<code>ready</code> 只表示“等人评审”。结束也不撤销
+Mandate，所以人的下一句话可以接上。原因是“模型认为做完了”和“团队收到了可用的结果”之间差着一次评审。</li>
+<li><strong>注意力是硬预算，并且由代码执行。</strong> 大多数 agent 用
+prompt 劝模型“简洁”。他们把发言变成有用途、有前置条件的写操作：IM 100
+词上限在传输层拒绝；向人提问必须走结构化的 <code>human_action</code>
+字段，不从报告的自由文本里推断“是不是需要人”（<code>docs/001-domain.md</code>
+的 Rejected concepts
+表明确拒绝了这种推断）。原因是只有结构化的事实才能被代码检查。</li>
+</ol>
+<hr />
+<h2 id="7-亮点与代价以及不适用的地方">7.
+亮点与代价，以及不适用的地方</h2>
+<table>
+<thead>
+<tr class="header">
+<th>亮点</th>
+<th>换来什么</th>
+<th>代价（相比谁）</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>确定性内核 + 先落盘的副作用</td>
+<td>崩溃和重启后可以继续；每条 Trigger 都有去向记录，可审计</td>
+<td>相比“LLM orchestrator
+在上下文里记账”，概念多出十几个，<code>src</code> 约 1.5 万行，测试约
+1.5 万行；同步 SQLite、单进程（目录加锁），想横向扩展基本要重做</td>
+</tr>
+<tr class="even">
+<td>两层 Eval + observe 影子模式</td>
+<td>主动行为可以先看“它会接什么”，再逐步放权</td>
+<td>相比 @ 触发型 agent，配置面大得多：名单、准入表三格 ×
+作用域、规则、模式、bot 名单</td>
+</tr>
+<tr class="odd">
+<td>订阅扇出 + handback</td>
+<td>后续讨论零 @，也不占路由成本</td>
+<td>相比全部经过 orchestrator，执行器要自己判断范围；错误的 attach
+会让工单订阅<strong>整个</strong>线程，提示词原话：<em>“a wrong
+attachment subscribes the ticket to the whole thread and
+stays”</em></td>
+</tr>
+<tr class="even">
+<td>一工单一会话一 worktree</td>
+<td>隔离、可并行、可重试，人可以直接进会话接手</td>
+<td>相比 Agent Team
+共享目录和共享任务板，工单之间没有共享上下文，每个执行器都要重读仓库；默认只有
+3 个并发</td>
+</tr>
+<tr class="odd">
+<td>注意力预算由代码执行</td>
+<td>群里安静，消息都是可行动的</td>
+<td>提示词工程很重（团队沟通段 97 行），换模型可能要重调；仓库用
+<code>tests/model-surface.spec.ts</code>
+给每个角色的模型可见内容设了体积预算</td>
+</tr>
+<tr class="even">
+<td>prompt 版本化 + “Default updated” 对比</td>
+<td>团队可以改提示词，又能跟上上游默认值的升级</td>
+<td>运维多一层概念：覆盖、base、版本、差异</td>
+</tr>
+</tbody>
+</table>
+<p><strong>失败模式与不适用的边界：</strong></p>
+<ul>
+<li><strong>它不是安全边界。</strong> 两个 preset 都以运维者的 OS
+用户、<code>danger-full-access</code> 运行，执行器跑命令不需要审批。账户
+wrapper 只决定默认凭据，<em>“A worker can still execute a program by
+absolute path”</em>。要隔离，得给 agent 单独开一个 OS 账户。“Trigger
+的哪些字段可信”在文档里仍是 open question。</li>
+<li><strong>单仓库、轮询延迟。</strong> GitHub Source 只绑定一个
+<code>owner/name</code>；轮询至少 60 秒，再加上 2 秒的 pass 和一次 LLM
+分诊，响应是分钟级的，不适合实时对话。</li>
+<li><strong>路由器是串行单点。</strong> 所有候选都经过同一个主
+Session。流量一大，Eval 会超时：120 秒，超时重排两次，第三次记为
+unavailable。批量路由（一次 1–20
+条）只能缓解，改变不了它是串行点这件事。</li>
+<li><strong>不擅长大任务分解。</strong> 工单之间没有任务
+DAG，也没有共享黑板。“一个大目标拆成 10 个并行子任务”这种形状，更适合
+Agent Team 或 Workflow；superagent 的做法是让单个执行器在内部再起
+subagent。</li>
+<li><strong>数据只增不减</strong>，目前没有任何清理逻辑。</li>
+<li><strong>研究原型。</strong> 作者自述大量工程由 coding agent
+完成，可能有 bug，风格也不统一。本文没有在本地跑它的测试（依赖 DSH 的
+peer 包，未安装）。</li>
+</ul>
+<hr />
+<h2
+id="8-问题二它和-deepseek-harness-有什么区别agent-架构是什么和-react-差在哪">8.
+问题二：它和 DeepSeek Harness 有什么区别？Agent 架构是什么？和 ReAct
+差在哪？</h2>
+<h3 id="81-先纠正一个预设它们不是同级产品">8.1
+先纠正一个预设：它们不是同级产品</h3>
+<p>“superagent 和 DSH
+有什么区别”这个问法，隐含了两者是同类产品。实际上<strong>DSH
+是运行时，superagent 是跑在它上面的应用</strong>，关系类似于“Agent
+SDK”与“用 SDK 写的一个服务”。superagent 的 <code>package.json</code> 把
+21 个 <code>@deepseek-ai/dsh-*</code> 包（外加 Cordis 和
+schemastery）列为 peer 依赖，并声明
+<code>engines.dsh: ^0.2.1-alpha.2</code>。</p>
+<table>
+<thead>
+<tr class="header">
+<th>层</th>
+<th>DeepSeek Harness 提供</th>
+<th>superagent 在其上加了什么</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>运行时</td>
+<td>Cordis 插件树、profile 与 bundle 分层、Web UI</td>
+<td>一个 bundle：3 个插件 + 2 个 agent preset + 一个侧栏面板</td>
+</tr>
+<tr class="even">
+<td>单会话循环</td>
+<td>turn/step agent loop、会话事件日志、inbox（queue / steer /
+inject）、上下文压缩</td>
+<td><strong>原样复用</strong>，没有改动</td>
+</tr>
+<tr class="odd">
+<td>工具</td>
+<td>文件、bash、job、skill、subagent、web 等，加上工具 guard 和
+restrict</td>
+<td>主 Session 14 个工具、执行器 6 个工具；<code>noWait</code>
+guard；<code>WORK_TOOLS</code> 白名单</td>
+</tr>
+<tr class="even">
+<td>多 agent 与自主原语</td>
+<td>Subagent、Workflow 脚本、实验性 Agent Teams、Goal、Ralph loop</td>
+<td><strong>不用它们做协调</strong>，自建 Engine 和
+Effects（执行器内部可以用 subagent）</td>
+</tr>
+<tr class="odd">
+<td>外部触发</td>
+<td>webhook runtime、schedule</td>
+<td>Source 插件协议：轮询与事件、读位置、订阅线程轮询、Channel 回写</td>
+</tr>
+<tr class="even">
+<td>授权</td>
+<td>权限 preset、审批、沙箱</td>
+<td>Policy、Gate、Mandate、准入表、接单模式、重验证</td>
+</tr>
+<tr class="odd">
+<td>持久化</td>
+<td>会话事件日志（JSONL）</td>
+<td>独立的 SQLite 领域库 + effect 队列 + outbox 回执</td>
+</tr>
+</tbody>
+</table>
+<p><strong>superagent 用 DSH
+原语的具体方式</strong>（这几处设计很巧）：</p>
+<ul>
+<li><strong>把 DSH 的三种 inbox 语义当消息总线用。</strong> 新派工用
+<code>queue</code>，开一个新 turn；送进主 Session
+的候选和报告、送进运行中执行器的 Inputs 用 <code>steer</code>，在下一个
+step 边界插入；不该唤醒路由器的通知用
+<code>inject</code>，等下一次被唤醒时一起带上。</li>
+<li><strong>订阅 DSH 的 agent 事件来推进领域状态。</strong>
+<code>agent/status: idle</code> 对应 <code>turnEnded</code>
+和后台工作检查；<code>session/event: user/message</code> 对应
+<code>inputsRead</code>（输入真正进了模型历史）；<code>agent/inbox/claimed</code>
+用来识别人直接在会话里打字；<code>agent/error</code>
+触发瞬时故障重试。</li>
+<li><strong>用 preset 和工具 guard 塑造两个角色</strong>：5 秒
+shell、无子 agent 的路由器，5 秒 shell、可起子 agent 的执行器。</li>
+</ul>
+<p><strong>为什么不直接用 DSH 自带的 Agent Teams 或
+webhook？</strong>（推断，依据是 <code>docs/001-domain.md</code> 的
+Rejected concepts
+表）这些原语协调的是<strong>一次由人发起的任务</strong>，状态记在发起者的会话日志里。superagent
+需要的是跨事件的身份（Thread）、去重、批处理、授权，以及在<strong>两个会话之间</strong>也要存在的状态。文档明确拒绝了“工单状态跟随
+DSH 会话”这一设计：<em>“A Ticket can be handed off, resumed, or run by
+several Executors, so it defines its own state.”</em></p>
+<h3 id="82-agent-架构控制面--执行面">8.2 Agent 架构：控制面 +
+执行面</h3>
+<p>可以借网络或 Kubernetes 的说法（有损类比）：</p>
+<ul>
+<li><strong>控制面</strong> = Source 插件 + 确定性 Engine（含 SQLite 和
+Effects）+ 1 个路由 LLM（主
+Session）。它决定“这条消息算不算活、归谁、能做到什么程度”，自己从不写代码。</li>
+<li><strong>执行面</strong> = N 个执行器 Session，每个绑定一个工单、一个
+worktree，内部是 DSH 标准的 ReAct 工具循环，可以再起 subagent。</li>
+<li>两个 LLM 角色<strong>可以配置不同的模型</strong>：Eval
+页选研判模型，Execution
+页选执行器模型（<code>src/app/role-models.ts</code>）。</li>
+<li>类比失效之处：Kubernetes
+的控制面持续把实际状态往期望状态上调和（reconcile），这里没有“期望状态”，只有事件推动的状态转移。</li>
+</ul>
+<h3 id="83-和传统-react-的差异同一段伪代码的-diff">8.3 和传统 ReAct
+的差异：同一段伪代码的 diff</h3>
+<p>先说结论：<strong>superagent 没有抛弃 ReAct。每个执行器内部就是
+ReAct</strong>：DSH 的一个 step
+是“一次模型请求加它调用的工具”，没有待执行的工具调用、inbox 也空了，turn
+才结束。它改的是<strong>外层循环</strong>。</p>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode diff"><code class="sourceCode diff"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="st">- ctx = [system_prompt, user_question]          # 状态 = 上下文</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="st">- for step in range(MAX_STEPS):                 # 外循环由模型驱动，有起点有终点</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="st">-     out = llm(ctx)</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="st">-     if out.kind == &quot;finish&quot;: return out.answer # 终止 = 模型说完成</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="st">-     obs = env.execute(out.action)</span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="st">-     ctx += [out, obs]                          # 只增不减，靠压缩续命</span></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="va">+ db = DomainStore()                             # 状态 = 会话之外的领域对象</span></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a><span class="va">+ on event(e):                                   # 外循环由外部事件驱动，永不 return</span></span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a><span class="va">+     if owned_followup(e): ticket_of(e).worker.steer(e); return</span></span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a><span class="va">+     level = gate(e)                            # 授权：代码，不是模型</span></span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a><span class="va">+     route = router_llm(card(e)) if level else IGNORE</span></span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a><span class="va">+     if route.accept: Ticket(e, Mandate(level)).launch()</span></span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a><span class="va">+         # launch 内部：for step...: llm → tools → obs   ← ReAct 仍在这里</span></span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a><span class="va">+ on pr_closed(pr): end(tickets_following(pr))   # 终止 = 外部世界的事实</span></span></code></pre></div>
+<p>于是：</p>
+<table>
+<thead>
+<tr class="header">
+<th>维度</th>
+<th>传统 ReAct</th>
+<th>dsh-superagent</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>谁驱动外循环</td>
+<td>模型，每步决定下一个动作；用户一次 prompt 启动</td>
+<td>外部事件和每 2 秒的 pass；LLM 只在被投递消息时才运行</td>
+</tr>
+<tr class="even">
+<td>终止</td>
+<td>模型输出 finish，或步数上限</td>
+<td>工单：PR 合并或关闭、dropped、人 stop。系统本身永不终止</td>
+</tr>
+<tr class="odd">
+<td>状态</td>
+<td>上下文，只增不减，靠压缩续命</td>
+<td>SQLite 领域对象；上下文只是执行器的工作记忆</td>
+</tr>
+<tr class="even">
+<td>授权</td>
+<td>隐式：谁开的会话谁说了算</td>
+<td>代码 Gate + 不可变 Mandate + 重验证</td>
+</tr>
+<tr class="odd">
+<td>并发</td>
+<td>单循环串行（工具调用可以并行）</td>
+<td>N 个工单并行，加上后台 job 和子 agent</td>
+</tr>
+<tr class="even">
+<td>失败恢复</td>
+<td>重来，或靠模型自愈</td>
+<td>effect 退避重试、派工重试、重启恢复说明、结构化 blocked</td>
+</tr>
+<tr class="odd">
+<td>人如何介入</td>
+<td>打断对话</td>
+<td>在原线程里说话即可；面板 stop 和 retry；结构化提问只问一个问题</td>
+</tr>
+</tbody>
+</table>
+<p><strong>选型判据：<strong>一次性、步骤取决于中途观察的任务，单会话
+ReAct
+就够了，更简单也更便宜。只有当工作</strong>由外部事件源源不断地触发、跨天延续、涉及多人授权</strong>时，才值得在
+ReAct 外面再套一层 superagent 这样的控制面。</p>
+<hr />
+<h2 id="9-问题三它和-multi-agentagent-team-有什么区别">9. 问题三：它和
+multi-agent、Agent Team 有什么区别？</h2>
+<h3 id="91-先纠正一个预设它本身就是-multi-agent">9.1
+先纠正一个预设：它本身就是 multi-agent</h3>
+<p>1 个主 Session + N 个执行器 Session + 执行器内部嵌套的 subagent（DSH
+<code>standard</code> preset），这当然是多 agent
+系统。真正的区别不在“几个 agent”，而在<strong>协调介质</strong>：agent
+之间靠什么分工、同步和交接。</p>
+<h3 id="92-谱系胶囊都以-dsh-中的实现为准">9.2 谱系胶囊（都以 DSH
+中的实现为准）</h3>
+<ul>
+<li><strong>Subagent</strong>（DSH
+<code>dsh-tool-subagent</code>）<strong>extends</strong> 单会话
+ReAct：把一个子任务交给独立上下文的子会话，结果回到父会话。父会话是唯一的协调者。</li>
+<li><strong>Workflow</strong>（DSH
+<code>dsh-workflow</code>）<strong>replaces</strong> “父 agent
+一步步决定何时派子 agent”：改由模型写一段编排脚本，脚本里用
+<code>agent()</code> 起子
+agent、并行、汇总。控制流变成了确定性的代码，但代码是模型<strong>临时写的</strong>，生命周期就是一次运行。</li>
+<li><strong>Agent Team</strong>（DSH
+<code>dsh-experimental-agent-team</code>，实验性）<strong>extends</strong>
+Subagent：子 agent
+变成有名字、可以反复唤醒的队友，再加上队友之间的直接消息和一块带
+compare-and-set 的共享任务板。</li>
+<li><strong>Ralph loop</strong>（DSH
+<code>dsh-tool-ralph</code>）<strong>removes</strong>
+跨轮上下文：每轮开一个全新子会话，只靠共享工作区和一份结构化交接（handoff）传递状态。</li>
+<li><strong>dsh-superagent</strong> <strong>moves</strong> 协调本身到
+LLM
+之外：触发来自外部事件流，授权和状态在<strong>作者写好的</strong>代码和数据库里，LLM
+只做分诊和单工单执行。</li>
+</ul>
+<p><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMTIwIDY0MCIgcm9sZT0iaW1nIiBhcmlhLWxhYmVsbGVkYnk9Imwxc3QgbDFzZCI+CiAgPHRpdGxlIGlkPSJsMXN0Ij7lm5vnp40gQWdlbnQg5p625p6E5Zyo4oCc6Kem5Y+RIMK3IOaOiOadgyDCtyDnirbmgIEgwrcg5omn6KGM4oCd5Zub5Liq6L205LiK55qE5Y+W5YC8PC90aXRsZT4KICA8ZGVzYyBpZD0ibDFzZCI+5Y2VIFNlc3Npb24gUmVBY3TjgIFTdWJhZ2VudOOAgUFnZW50IFRlYW0g6YO95piv55Sx5LiA5Liq5Lq65Y+R6LW35LiA5qyh5Lu75Yqh44CB55SxIExMTSDkuYvpl7TnmoTlr7nor53mnaXljY/osIPvvJtkc2gtc3VwZXJhZ2VudCDmiorop6blj5HmjaLmiJDlpJbpg6jkuovku7bmtYHvvIzmiormjojmnYPlkoznirbmgIHku44gTExNIOS4iuS4i+aWh+mHjOenu+WIsOS7o+eggeWSjOaVsOaNruW6k+S4re+8jExMTSDlj6rotJ/otKPot6/nlLHlkozmiafooYzljZXkuKrlt6XljZXjgII8L2Rlc2M+CiAgPHN0eWxlPgogICAgc3ZnIHsgLS1iZzojZmZmZmZmOyAtLWluazojMWYyMzI4OyAtLW11dGVkOiM1NzYwNmE7IC0tY29kZS1maWxsOiNmNmY4ZmE7IC0tY29kZS1zdHJva2U6IzI0MjkyZjsgLS1sbG0tZmlsbDojZmZmNGU1OyAtLWxsbS1zdHJva2U6I2IzNTkwMDsKICAgICAgICAgIC0tZXh0LWZpbGw6I2VlZjZmZjsgLS1leHQtc3Ryb2tlOiMwOTY5ZGE7IC0tc3RvcmUtZmlsbDojZWFmN2VlOyAtLXN0b3JlLXN0cm9rZTojMWE3ZjM3OyAtLWVkZ2U6IzQyNGE1MzsgLS1wYW5lbDojZDBkN2RlOyAtLWhsOiNmZmY4YzU7CiAgICAgICAgICBmb250LWZhbWlseTogLWFwcGxlLXN5c3RlbSwgQmxpbmtNYWNTeXN0ZW1Gb250LCAiUGluZ0ZhbmcgU0MiLCAiSGlyYWdpbm8gU2FucyBHQiIsICJOb3RvIFNhbnMgQ0pLIFNDIiwgIlNvdXJjZSBIYW4gU2FucyBTQyIsICJNaWNyb3NvZnQgWWFIZWkiLCAiV2VuUXVhbllpIFplbiBIZWkiLCBzYW5zLXNlcmlmOyB9CiAgICBAbWVkaWEgKHByZWZlcnMtY29sb3Itc2NoZW1lOiBkYXJrKSB7CiAgICAgIHN2ZyB7IC0tYmc6IzBkMTExNzsgLS1pbms6I2U2ZWRmMzsgLS1tdXRlZDojOWRhN2IzOyAtLWNvZGUtZmlsbDojMTYxYjIyOyAtLWNvZGUtc3Ryb2tlOiNjOWQxZDk7IC0tbGxtLWZpbGw6IzJiMWQwYzsgLS1sbG0tc3Ryb2tlOiNmMGExNGE7CiAgICAgICAgICAgIC0tZXh0LWZpbGw6IzBjMjM0MDsgLS1leHQtc3Ryb2tlOiM1OGE2ZmY7IC0tc3RvcmUtZmlsbDojMGYyYTFhOyAtLXN0b3JlLXN0cm9rZTojM2ZiOTUwOyAtLWVkZ2U6I2FkYmFjNzsgLS1wYW5lbDojMzAzNjNkOyAtLWhsOiMyZTJhMTI7IH0KICAgIH0KICAgIC5iZyB7IGZpbGw6IHZhcigtLWJnKTsgfQogICAgLnBhbmVsIHsgZmlsbDogbm9uZTsgc3Ryb2tlOiB2YXIoLS1wYW5lbCk7IHN0cm9rZS13aWR0aDogMS41OyB9CiAgICAuaGxwIHsgZmlsbDogdmFyKC0taGwpOyBzdHJva2U6IHZhcigtLXBhbmVsKTsgc3Ryb2tlLXdpZHRoOiAxLjU7IH0KICAgIC5jb2RlIHsgZmlsbDogdmFyKC0tY29kZS1maWxsKTsgc3Ryb2tlOiB2YXIoLS1jb2RlLXN0cm9rZSk7IHN0cm9rZS13aWR0aDogMS41OyB9CiAgICAuZ2F0ZSB7IGZpbGw6IHZhcigtLWNvZGUtZmlsbCk7IHN0cm9rZTogdmFyKC0tY29kZS1zdHJva2UpOyBzdHJva2Utd2lkdGg6IDM7IH0KICAgIC5sbG0geyBmaWxsOiB2YXIoLS1sbG0tZmlsbCk7IHN0cm9rZTogdmFyKC0tbGxtLXN0cm9rZSk7IHN0cm9rZS13aWR0aDogMS41OyB9CiAgICAubGxtMiB7IGZpbGw6IG5vbmU7IHN0cm9rZTogdmFyKC0tbGxtLXN0cm9rZSk7IHN0cm9rZS13aWR0aDogMTsgfQogICAgLmV4dCB7IGZpbGw6IHZhcigtLWV4dC1maWxsKTsgc3Ryb2tlOiB2YXIoLS1leHQtc3Ryb2tlKTsgc3Ryb2tlLXdpZHRoOiAxLjU7IH0KICAgIC5zdG9yZSB7IGZpbGw6IHZhcigtLXN0b3JlLWZpbGwpOyBzdHJva2U6IHZhcigtLXN0b3JlLXN0cm9rZSk7IHN0cm9rZS13aWR0aDogMS41OyB9CiAgICAucGVyc29uIHsgZmlsbDogbm9uZTsgc3Ryb2tlOiB2YXIoLS1pbmspOyBzdHJva2Utd2lkdGg6IDEuNjsgfQogICAgLnRpdGxlIHsgZmlsbDogdmFyKC0taW5rKTsgZm9udC1zaXplOiAxNnB4OyBmb250LXdlaWdodDogNzAwOyB9CiAgICAudCB7IGZpbGw6IHZhcigtLWluayk7IGZvbnQtc2l6ZTogMTMuNXB4OyBmb250LXdlaWdodDogNjAwOyB9CiAgICAucyB7IGZpbGw6IHZhcigtLW11dGVkKTsgZm9udC1zaXplOiAxMnB4OyB9CiAgICAuYXggeyBmaWxsOiB2YXIoLS1pbmspOyBmb250LXNpemU6IDEyLjVweDsgZm9udC13ZWlnaHQ6IDcwMDsgfQogICAgLnYgeyBmaWxsOiB2YXIoLS1pbmspOyBmb250LXNpemU6IDEyLjVweDsgfQogICAgLmxhYiB7IGZpbGw6IHZhcigtLW11dGVkKTsgZm9udC1zaXplOiAxMS41cHg7IH0KICAgIC5lIHsgc3Ryb2tlOiB2YXIoLS1lZGdlKTsgc3Ryb2tlLXdpZHRoOiAxLjU7IGZpbGw6IG5vbmU7IG1hcmtlci1lbmQ6IHVybCgjYXJyKTsgfQogICAgLmVhIHsgc3Ryb2tlOiB2YXIoLS1lZGdlKTsgc3Ryb2tlLXdpZHRoOiAxLjU7IGZpbGw6IG5vbmU7IHN0cm9rZS1kYXNoYXJyYXk6IDYgNDsgbWFya2VyLWVuZDogdXJsKCNhcnIpOyB9CiAgICAubG4geyBzdHJva2U6IHZhcigtLWVkZ2UpOyBzdHJva2Utd2lkdGg6IDEuNTsgZmlsbDogbm9uZTsgfQogICAgLmxuZCB7IHN0cm9rZTogdmFyKC0tZWRnZSk7IHN0cm9rZS13aWR0aDogMS4yOyBmaWxsOiBub25lOyBzdHJva2UtZGFzaGFycmF5OiAzIDM7IH0KICAgIC5haCB7IGZpbGw6IHZhcigtLWVkZ2UpOyB9CiAgPC9zdHlsZT4KICA8ZGVmcz4KICAgIDxtYXJrZXIgaWQ9ImFyciIgdmlld0JveD0iMCAwIDEwIDEwIiByZWZYPSI5IiByZWZZPSI1IiBtYXJrZXJXaWR0aD0iNyIgbWFya2VySGVpZ2h0PSI3IiBvcmllbnQ9ImF1dG8tc3RhcnQtcmV2ZXJzZSI+PHBhdGggY2xhc3M9ImFoIiBkPSJNMCwwIEwxMCw1IEwwLDEwIHoiLz48L21hcmtlcj4KICA8L2RlZnM+CiAgPHJlY3QgY2xhc3M9ImJnIiB4PSIwIiB5PSIwIiB3aWR0aD0iMTEyMCIgaGVpZ2h0PSI2NDAiLz4KCiAgPCEtLSBQYW5lbHMgLS0+CiAgPHJlY3QgY2xhc3M9InBhbmVsIiB4PSIxMiIgeT0iMTIiIHdpZHRoPSIyNjYiIGhlaWdodD0iNTYyIiByeD0iOCIvPgogIDxyZWN0IGNsYXNzPSJwYW5lbCIgeD0iMjkwIiB5PSIxMiIgd2lkdGg9IjI2NiIgaGVpZ2h0PSI1NjIiIHJ4PSI4Ii8+CiAgPHJlY3QgY2xhc3M9InBhbmVsIiB4PSI1NjgiIHk9IjEyIiB3aWR0aD0iMjY2IiBoZWlnaHQ9IjU2MiIgcng9IjgiLz4KICA8cmVjdCBjbGFzcz0iaGxwIiB4PSI4NDYiIHk9IjEyIiB3aWR0aD0iMjY2IiBoZWlnaHQ9IjU2MiIgcng9IjgiLz4KICA8dGV4dCBjbGFzcz0idGl0bGUiIHg9IjE0NSIgeT0iNDAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPuWNlSBTZXNzaW9uIFJlQWN0PC90ZXh0PgogIDx0ZXh0IGNsYXNzPSJ0aXRsZSIgeD0iNDIzIiB5PSI0MCIgdGV4dC1hbmNob3I9Im1pZGRsZSI+U3ViYWdlbnQg5aeU5rS+PC90ZXh0PgogIDx0ZXh0IGNsYXNzPSJ0aXRsZSIgeD0iNzAxIiB5PSI0MCIgdGV4dC1hbmNob3I9Im1pZGRsZSI+QWdlbnQgVGVhbTwvdGV4dD4KICA8dGV4dCBjbGFzcz0idGl0bGUiIHg9Ijk3OSIgeT0iNDAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPmRzaC1zdXBlcmFnZW50PC90ZXh0PgoKICA8IS0tIEE6IFJlQWN0IC0tPgogIDxnPgogICAgPGNpcmNsZSBjbGFzcz0icGVyc29uIiBjeD0iNDQiIGN5PSI4NCIgcj0iOSIvPjxwYXRoIGNsYXNzPSJwZXJzb24iIGQ9Ik0zMCwxMTIgcTE0LC0yMCAyOCwwIi8+CiAgICA8cGF0aCBjbGFzcz0iZSIgZD0iTTYyLDk2IEw5Niw5NiIvPgogICAgPHJlY3QgY2xhc3M9ImxsbSIgeD0iOTgiIHk9IjY2IiB3aWR0aD0iMTY0IiBoZWlnaHQ9IjYyIiByeD0iMTIiLz48cmVjdCBjbGFzcz0ibGxtMiIgeD0iMTAyIiB5PSI3MCIgd2lkdGg9IjE1NiIgaGVpZ2h0PSI1NCIgcng9IjkiLz4KICAgIDx0ZXh0IGNsYXNzPSJ0IiB4PSIxODAiIHk9IjkyIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5BZ2VudCDlvqrnjq88L3RleHQ+CiAgICA8dGV4dCBjbGFzcz0icyIgeD0iMTgwIiB5PSIxMTIiIHRleHQtYW5jaG9yPSJtaWRkbGUiPuaAneiAgyDihpIg5bel5YW3IOKGkiDop4Llr588L3RleHQ+CiAgICA8cmVjdCBjbGFzcz0iY29kZSIgeD0iMTIwIiB5PSIxOTYiIHdpZHRoPSIxMjAiIGhlaWdodD0iNDAiLz4KICAgIDx0ZXh0IGNsYXNzPSJ0IiB4PSIxODAiIHk9IjIyMSIgdGV4dC1hbmNob3I9Im1pZGRsZSI+5bel5YW3IC8g546v5aKDPC90ZXh0PgogICAgPHBhdGggY2xhc3M9ImUiIGQ9Ik0xNjAsMTI4IEwxNjAsMTk0Ii8+CiAgICA8cGF0aCBjbGFzcz0iZSIgZD0iTTIwMCwxOTYgTDIwMCwxMzAiLz4KICAgIDx0ZXh0IGNsYXNzPSJsYWIiIHg9IjE1NCIgeT0iMTY2IiB0ZXh0LWFuY2hvcj0iZW5kIj7liqjkvZw8L3RleHQ+CiAgICA8dGV4dCBjbGFzcz0ibGFiIiB4PSIyMDYiIHk9IjE2NiI+6KeC5a+fPC90ZXh0PgogICAgPHRleHQgY2xhc3M9InMiIHg9IjE0NSIgeT0iMjcwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj7kuIDkuKrkvJror53ku47lpLTot5HliLDlsL48L3RleHQ+CiAgPC9nPgoKICA8IS0tIEI6IFN1YmFnZW50IC0tPgogIDxnPgogICAgPGNpcmNsZSBjbGFzcz0icGVyc29uIiBjeD0iMzIyIiBjeT0iODQiIHI9IjkiLz48cGF0aCBjbGFzcz0icGVyc29uIiBkPSJNMzA4LDExMiBxMTQsLTIwIDI4LDAiLz4KICAgIDxwYXRoIGNsYXNzPSJlIiBkPSJNMzQwLDk2IEwzNzQsOTYiLz4KICAgIDxyZWN0IGNsYXNzPSJsbG0iIHg9IjM3NiIgeT0iNjYiIHdpZHRoPSIxNjQiIGhlaWdodD0iNjIiIHJ4PSIxMiIvPjxyZWN0IGNsYXNzPSJsbG0yIiB4PSIzODAiIHk9IjcwIiB3aWR0aD0iMTU2IiBoZWlnaHQ9IjU0IiByeD0iOSIvPgogICAgPHRleHQgY2xhc3M9InQiIHg9IjQ1OCIgeT0iOTIiIHRleHQtYW5jaG9yPSJtaWRkbGUiPueItiBBZ2VudDwvdGV4dD4KICAgIDx0ZXh0IGNsYXNzPSJzIiB4PSI0NTgiIHk9IjExMiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+5oqK5a2Q5Lu75Yqh5b2T5L2c5bel5YW36LCD55SoPC90ZXh0PgogICAgPHJlY3QgY2xhc3M9ImxsbSIgeD0iMzc2IiB5PSIxOTAiIHdpZHRoPSIxNjQiIGhlaWdodD0iNTQiIHJ4PSIxMiIvPjxyZWN0IGNsYXNzPSJsbG0yIiB4PSIzODAiIHk9IjE5NCIgd2lkdGg9IjE1NiIgaGVpZ2h0PSI0NiIgcng9IjkiLz4KICAgIDx0ZXh0IGNsYXNzPSJ0IiB4PSI0NTgiIHk9IjIxNCIgdGV4dC1hbmNob3I9Im1pZGRsZSI+5a2QIEFnZW50PC90ZXh0PgogICAgPHRleHQgY2xhc3M9InMiIHg9IjQ1OCIgeT0iMjMyIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj7ni6znq4vkuIrkuIvmlofvvIznlKjlrozljbPmraI8L3RleHQ+CiAgICA8cGF0aCBjbGFzcz0iZWEiIGQ9Ik00MzAsMTI4IEw0MzAsMTg4Ii8+CiAgICA8cGF0aCBjbGFzcz0iZSIgZD0iTTQ4NiwxOTAgTDQ4NiwxMzAiLz4KICAgIDx0ZXh0IGNsYXNzPSJsYWIiIHg9IjQyNCIgeT0iMTY0IiB0ZXh0LWFuY2hvcj0iZW5kIj5zcGF3bihwcm9tcHQpPC90ZXh0PgogICAgPHRleHQgY2xhc3M9ImxhYiIgeD0iNDkyIiB5PSIxNjQiPue7k+aenOWbnuWhqzwvdGV4dD4KICAgIDx0ZXh0IGNsYXNzPSJzIiB4PSI0MjMiIHk9IjI3MCIgdGV4dC1hbmNob3I9Im1pZGRsZSI+5qCR54q277ya54i2562J5b6F5oiW6KKr6YCa55+lPC90ZXh0PgogIDwvZz4KCiAgPCEtLSBDOiBBZ2VudCBUZWFtIC0tPgogIDxnPgogICAgPGNpcmNsZSBjbGFzcz0icGVyc29uIiBjeD0iNjAwIiBjeT0iODQiIHI9IjkiLz48cGF0aCBjbGFzcz0icGVyc29uIiBkPSJNNTg2LDExMiBxMTQsLTIwIDI4LDAiLz4KICAgIDxwYXRoIGNsYXNzPSJlIiBkPSJNNjE4LDk2IEw2NTIsOTYiLz4KICAgIDxyZWN0IGNsYXNzPSJsbG0iIHg9IjY1NCIgeT0iNzAiIHdpZHRoPSIxNjQiIGhlaWdodD0iNTIiIHJ4PSIxMiIvPjxyZWN0IGNsYXNzPSJsbG0yIiB4PSI2NTgiIHk9Ijc0IiB3aWR0aD0iMTU2IiBoZWlnaHQ9IjQ0IiByeD0iOSIvPgogICAgPHRleHQgY2xhc3M9InQiIHg9IjczNiIgeT0iOTQiIHRleHQtYW5jaG9yPSJtaWRkbGUiPkxlYWQ8L3RleHQ+CiAgICA8dGV4dCBjbGFzcz0icyIgeD0iNzM2IiB5PSIxMTEiIHRleHQtYW5jaG9yPSJtaWRkbGUiPuaLhuS7u+WKoeOAgeW7uumYn+WPizwvdGV4dD4KICAgIDxyZWN0IGNsYXNzPSJsbG0iIHg9IjU4NCIgeT0iMTYwIiB3aWR0aD0iMTEyIiBoZWlnaHQ9IjQ0IiByeD0iMTAiLz4KICAgIDx0ZXh0IGNsYXNzPSJ0IiB4PSI2NDAiIHk9IjE4NyIgdGV4dC1hbmNob3I9Im1pZGRsZSI+6Zif5Y+LIGNvZGVyPC90ZXh0PgogICAgPHJlY3QgY2xhc3M9ImxsbSIgeD0iNzEyIiB5PSIxNjAiIHdpZHRoPSIxMTIiIGhlaWdodD0iNDQiIHJ4PSIxMCIvPgogICAgPHRleHQgY2xhc3M9InQiIHg9Ijc2OCIgeT0iMTg3IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj7pmJ/lj4sgcmV2aWV3ZXI8L3RleHQ+CiAgICA8cGF0aCBjbGFzcz0iZSIgZD0iTTcwMCwxMjIgTDY1MiwxNTgiLz4KICAgIDxwYXRoIGNsYXNzPSJlIiBkPSJNNzcyLDEyMiBMNzcyLDE1OCIvPgogICAgPHBhdGggY2xhc3M9ImUiIGQ9Ik02OTYsMTc2IEw3MTAsMTc2Ii8+CiAgICA8cGF0aCBjbGFzcz0iZSIgZD0iTTcxMiwxOTIgTDY5OCwxOTIiLz4KICAgIDxwYXRoIGNsYXNzPSJzdG9yZSIgZD0iTTYxMiwyMjYgYTg5LDggMCAwLDEgMTc4LDAgdjMwIGE4OSw4IDAgMCwxIC0xNzgsMCB6Ii8+CiAgICA8cGF0aCBjbGFzcz0ic3RvcmUiIGQ9Ik02MTIsMjI2IGE4OSw4IDAgMCwwIDE3OCwwIiBzdHlsZT0iZmlsbDpub25lIi8+CiAgICA8dGV4dCBjbGFzcz0icyIgeD0iNzAxIiB5PSIyNTAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPuWFseS6q+S7u+WKoeadv++8iERBRyDCtyBDQVPvvIk8L3RleHQ+CiAgICA8cGF0aCBjbGFzcz0ibG5kIiBkPSJNNjQwLDIwNCBMNjUwLDIyMCIvPgogICAgPHBhdGggY2xhc3M9ImxuZCIgZD0iTTc2OCwyMDQgTDc1NiwyMjAiLz4KICAgIDx0ZXh0IGNsYXNzPSJzIiB4PSI3MDEiIHk9IjI4MiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+6Zif5Y+L5LqS5Y+R5raI5oGvIMK3IOWFseS6q+S4gOS4quebruW9lTwvdGV4dD4KICA8L2c+CgogIDwhLS0gRDogZHNoLXN1cGVyYWdlbnQgLS0+CiAgPGc+CiAgICA8cmVjdCBjbGFzcz0iZXh0IiB4PSI4NTYiIHk9IjYyIiB3aWR0aD0iNzgiIGhlaWdodD0iMjgiIHJ4PSIxNCIvPgogICAgPHRleHQgY2xhc3M9InMiIHg9Ijg5NSIgeT0iODEiIHRleHQtYW5jaG9yPSJtaWRkbGUiPkdpdEh1YjwvdGV4dD4KICAgIDxyZWN0IGNsYXNzPSJleHQiIHg9Ijg1NiIgeT0iOTgiIHdpZHRoPSI3OCIgaGVpZ2h0PSIyOCIgcng9IjE0Ii8+CiAgICA8dGV4dCBjbGFzcz0icyIgeD0iODk1IiB5PSIxMTciIHRleHQtYW5jaG9yPSJtaWRkbGUiPumjnuS5pjwvdGV4dD4KICAgIDxwYXRoIGNsYXNzPSJlIiBkPSJNOTM0LDc2IEw5NTgsOTAiLz4KICAgIDxwYXRoIGNsYXNzPSJlIiBkPSJNOTM0LDExMiBMOTU4LDEwMiIvPgogICAgPHJlY3QgY2xhc3M9ImdhdGUiIHg9Ijk2MCIgeT0iNjYiIHdpZHRoPSIxNDAiIGhlaWdodD0iNjIiLz4KICAgIDx0ZXh0IGNsYXNzPSJ0IiB4PSIxMDMwIiB5PSI5MCIgdGV4dC1hbmNob3I9Im1pZGRsZSI+5YaF5qC477yI5Luj56CB77yJPC90ZXh0PgogICAgPHRleHQgY2xhc3M9InMiIHg9IjEwMzAiIHk9IjExMCIgdGV4dC1hbmNob3I9Im1pZGRsZSI+R2F0ZSDCtyDlt6XljZUgwrcgU1FMaXRlPC90ZXh0PgogICAgPHJlY3QgY2xhc3M9ImxsbSIgeD0iODU2IiB5PSIxNTAiIHdpZHRoPSIxMjAiIGhlaWdodD0iNDQiIHJ4PSIxMCIvPjxyZWN0IGNsYXNzPSJsbG0yIiB4PSI4NjAiIHk9IjE1NCIgd2lkdGg9IjExMiIgaGVpZ2h0PSIzNiIgcng9IjgiLz4KICAgIDx0ZXh0IGNsYXNzPSJ0IiB4PSI5MTYiIHk9IjE3NyIgdGV4dC1hbmNob3I9Im1pZGRsZSI+6Lev55SxIExMTTwvdGV4dD4KICAgIDxwYXRoIGNsYXNzPSJlYSIgZD0iTTk4MCwxMjggTDk1NiwxNDgiLz4KICAgIDxwYXRoIGNsYXNzPSJlIiBkPSJNOTY2LDE1MCBMOTk2LDEzMCIvPgogICAgPHBhdGggY2xhc3M9ImxuIiBkPSJNMTA2MCwxMjggTDEwNjAsMjE2Ii8+CiAgICA8cGF0aCBjbGFzcz0ibG4iIGQ9Ik04OTAsMjE2IEwxMDYwLDIxNiIvPgogICAgPHBhdGggY2xhc3M9ImVhIiBkPSJNODkwLDIxNiBMODkwLDIzMiIvPgogICAgPHBhdGggY2xhc3M9ImVhIiBkPSJNOTc1LDIxNiBMOTc1LDIzMiIvPgogICAgPHBhdGggY2xhc3M9ImVhIiBkPSJNMTA2MCwyMTYgTDEwNjAsMjMyIi8+CiAgICA8cmVjdCBjbGFzcz0ibGxtIiB4PSI4NTYiIHk9IjIzNCIgd2lkdGg9IjY4IiBoZWlnaHQ9IjQwIiByeD0iOSIvPgogICAgPHRleHQgY2xhc3M9InMiIHg9Ijg5MCIgeT0iMjUyIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj7lt6XljZUgMTwvdGV4dD48dGV4dCBjbGFzcz0icyIgeD0iODkwIiB5PSIyNjciIHRleHQtYW5jaG9yPSJtaWRkbGUiPisg55uu5b2VPC90ZXh0PgogICAgPHJlY3QgY2xhc3M9ImxsbSIgeD0iOTQxIiB5PSIyMzQiIHdpZHRoPSI2OCIgaGVpZ2h0PSI0MCIgcng9IjkiLz4KICAgIDx0ZXh0IGNsYXNzPSJzIiB4PSI5NzUiIHk9IjI1MiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+5bel5Y2VIDI8L3RleHQ+PHRleHQgY2xhc3M9InMiIHg9Ijk3NSIgeT0iMjY3IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj4rIOebruW9lTwvdGV4dD4KICAgIDxyZWN0IGNsYXNzPSJsbG0iIHg9IjEwMjYiIHk9IjIzNCIgd2lkdGg9IjY4IiBoZWlnaHQ9IjQwIiByeD0iOSIvPgogICAgPHRleHQgY2xhc3M9InMiIHg9IjEwNjAiIHk9IjI1MiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+5bel5Y2VIE48L3RleHQ+PHRleHQgY2xhc3M9InMiIHg9IjEwNjAiIHk9IjI2NyIgdGV4dC1hbmNob3I9Im1pZGRsZSI+KyDnm67lvZU8L3RleHQ+CiAgICA8dGV4dCBjbGFzcz0icyIgeD0iOTc5IiB5PSIyOTYiIHRleHQtYW5jaG9yPSJtaWRkbGUiPuaJp+ihjOWZqOS5i+mXtOS4jeS6kuWPkea2iOaBrzwvdGV4dD4KICA8L2c+CgogIDwhLS0gQXhpcyByb3dzIC0tPgogIDxnPgogICAgPCEtLSDop6blj5EgLS0+CiAgICA8dGV4dCBjbGFzcz0iYXgiIHg9IjI2IiB5PSIzMzAiPuinpuWPkTwvdGV4dD48dGV4dCBjbGFzcz0idiIgeD0iMjYiIHk9IjM0OSI+55So5oi355qE5LiA5qyh5o+Q6ZeuIC8g5oyH5LukPC90ZXh0PgogICAgPHRleHQgY2xhc3M9ImF4IiB4PSIzMDQiIHk9IjMzMCI+6Kem5Y+RPC90ZXh0Pjx0ZXh0IGNsYXNzPSJ2IiB4PSIzMDQiIHk9IjM0OSI+54i2IEFnZW50IOeahOS4gOasoeW3peWFt+iwg+eUqDwvdGV4dD4KICAgIDx0ZXh0IGNsYXNzPSJheCIgeD0iNTgyIiB5PSIzMzAiPuinpuWPkTwvdGV4dD48dGV4dCBjbGFzcz0idiIgeD0iNTgyIiB5PSIzNDkiPueUqOaItyDihpIgTGVhZO+8m+mYn+WPi+S6kuWPkea2iOaBrzwvdGV4dD4KICAgIDx0ZXh0IGNsYXNzPSJheCIgeD0iODYwIiB5PSIzMzAiPuinpuWPkTwvdGV4dD48dGV4dCBjbGFzcz0idiIgeD0iODYwIiB5PSIzNDkiPuWklumDqOS6i+S7tua1ge+8jDfDlzI0IOW4uOmpuzwvdGV4dD4KICAgIDwhLS0g5o6I5p2DIC0tPgogICAgPHRleHQgY2xhc3M9ImF4IiB4PSIyNiIgeT0iMzkwIj7mjojmnYM8L3RleHQ+PHRleHQgY2xhc3M9InYiIHg9IjI2IiB5PSI0MDkiPumakOW8j++8muiwgeW8gOS8muivneiwgeivtOS6hueulzwvdGV4dD4KICAgIDx0ZXh0IGNsYXNzPSJheCIgeD0iMzA0IiB5PSIzOTAiPuaOiOadgzwvdGV4dD48dGV4dCBjbGFzcz0idiIgeD0iMzA0IiB5PSI0MDkiPue7p+aJv+eItuS8muivneeahOadg+mZkDwvdGV4dD4KICAgIDx0ZXh0IGNsYXNzPSJheCIgeD0iNTgyIiB5PSIzOTAiPuaOiOadgzwvdGV4dD48dGV4dCBjbGFzcz0idiIgeD0iNTgyIiB5PSI0MDkiPuWPquaciSBMZWFkIOiDveW7uiAvIOWBnOmYn+WPizwvdGV4dD4KICAgIDx0ZXh0IGNsYXNzPSJheCIgeD0iODYwIiB5PSIzOTAiPuaOiOadgzwvdGV4dD48dGV4dCBjbGFzcz0idiIgeD0iODYwIiB5PSI0MDkiPuS7o+eggSBHYXRlICsg5LiN5Y+v5Y+YIE1hbmRhdGU8L3RleHQ+CiAgICA8IS0tIOeKtuaAgSAtLT4KICAgIDx0ZXh0IGNsYXNzPSJheCIgeD0iMjYiIHk9IjQ1MCI+54q25oCBPC90ZXh0Pjx0ZXh0IGNsYXNzPSJ2IiB4PSIyNiIgeT0iNDY5Ij7kuIrkuIvmlofnqpflj6PvvIjkvJrooqvljovnvKnvvIk8L3RleHQ+CiAgICA8dGV4dCBjbGFzcz0iYXgiIHg9IjMwNCIgeT0iNDUwIj7nirbmgIE8L3RleHQ+PHRleHQgY2xhc3M9InYiIHg9IjMwNCIgeT0iNDY5Ij7niLbkuIrkuIvmlocgKyDlrZDkvJror53ml6Xlv5c8L3RleHQ+CiAgICA8dGV4dCBjbGFzcz0iYXgiIHg9IjU4MiIgeT0iNDUwIj7nirbmgIE8L3RleHQ+PHRleHQgY2xhc3M9InYiIHg9IjU4MiIgeT0iNDY5Ij5MZWFkIOS8muivneaXpeW/l+mHjOeahOWQjeWGjDwvdGV4dD48dGV4dCBjbGFzcz0idiIgeD0iNTgyIiB5PSI0ODYiPuS4juS7u+WKoeadvzwvdGV4dD4KICAgIDx0ZXh0IGNsYXNzPSJheCIgeD0iODYwIiB5PSI0NTAiPueKtuaAgTwvdGV4dD48dGV4dCBjbGFzcz0idiIgeD0iODYwIiB5PSI0NjkiPuS8muivneS5i+WklueahCBTUUxpdGUg6aKG5Z+f5a+56LGhPC90ZXh0PgogICAgPCEtLSDmiafooYwgLS0+CiAgICA8dGV4dCBjbGFzcz0iYXgiIHg9IjI2IiB5PSI1MjAiPuaJp+ihjDwvdGV4dD48dGV4dCBjbGFzcz0idiIgeD0iMjYiIHk9IjUzOSI+5ZCM5LiA5Liq5b6q546v77yM5Liy6KGMPC90ZXh0PgogICAgPHRleHQgY2xhc3M9ImF4IiB4PSIzMDQiIHk9IjUyMCI+5omn6KGMPC90ZXh0Pjx0ZXh0IGNsYXNzPSJ2IiB4PSIzMDQiIHk9IjUzOSI+5a2Q5Lya6K+d77yM57uT5p6c5Zue5Yiw54i25LiK5LiL5paHPC90ZXh0PgogICAgPHRleHQgY2xhc3M9ImF4IiB4PSI1ODIiIHk9IjUyMCI+5omn6KGMPC90ZXh0Pjx0ZXh0IGNsYXNzPSJ2IiB4PSI1ODIiIHk9IjUzOSI+5ZG95ZCN6Zif5Y+L77yM5YWx5Lqr5bel5L2c55uu5b2VPC90ZXh0PgogICAgPHRleHQgY2xhc3M9ImF4IiB4PSI4NjAiIHk9IjUyMCI+5omn6KGMPC90ZXh0Pjx0ZXh0IGNsYXNzPSJ2IiB4PSI4NjAiIHk9IjUzOSI+5LiA5bel5Y2VID0g5LiA5Lya6K+dICsg5LiAIHdvcmt0cmVlPC90ZXh0PgogIDwvZz4KCiAgPCEtLSBTcGVjdHJ1bSBhcnJvdyAtLT4KICA8cGF0aCBjbGFzcz0iZSIgZD0iTTU2MCw2MDQgTDQwLDYwNCIvPgogIDxwYXRoIGNsYXNzPSJlIiBkPSJNNTYwLDYwNCBMMTA5MCw2MDQiLz4KICA8dGV4dCBjbGFzcz0idiIgeD0iNDAiIHk9IjYyOCI+5Y2P6LCD6Z2gIExMTSDkuYvpl7TnmoTlr7nor53kuI7kuIrkuIvmloc8L3RleHQ+CiAgPHRleHQgY2xhc3M9InYiIHg9IjEwOTAiIHk9IjYyOCIgdGV4dC1hbmNob3I9ImVuZCI+5Y2P6LCD6Z2g5Luj56CB44CB5pWw5o2u5bqT5LiO6aKG5Z+f6KeE5YiZPC90ZXh0Pgo8L3N2Zz4K" alt="图 4" /></p>
+<p><strong>图 4：沿“触发 · 授权 · 状态 ·
+执行”四个轴看，前三种都是一个人发起一次任务、由 LLM
+之间的对话协调；dsh-superagent 把触发换成外部事件流，把授权和状态从 LLM
+上下文挪进代码和数据库。</strong></p>
+<h3 id="93-agent-team-是怎么搭的以-dsh-的实验实现为准">9.3 Agent Team
+是怎么搭的（以 DSH 的实验实现为准）</h3>
+<p>依据：DSH 仓库的 <code>docs/subsystems/agent-team.md</code> 和
+<code>packages/experimental/agent-team/README.md</code>。</p>
+<p><strong>架构。<strong>一个会话当 <strong>Lead</strong>，它的会话 id
+就是 <code>TeamId</code>。Lead
+可以创建有名字的</strong>队友</strong>；队友是 Lead
+的直接子会话，创建时选 <code>fresh</code>（不带 Lead 的历史）或
+<code>fork</code>（继承 Lead 已完成的
+turn）。所有成员<strong>共享一个工作目录</strong>。</p>
+<p><strong>工程链路：</strong></p>
+<ol type="1">
+<li>用户在 Lead 会话里提出目标，Lead（LLM）决定需要哪些角色。</li>
+<li><code>spawnTeammate(name, description, prompt, context, provider)</code>：名册记录从
+<code>provisioning</code> 进入 <code>active</code> 或
+<code>failed</code>。名字永久有效，失败了也不复用。</li>
+<li><code>createTask(subject, description, blockedBy[], writeScopes[])</code>：任务进入共享任务板。<code>blockedBy</code>
+必须构成无环图。<code>writeScopes</code>
+是<strong>建议性</strong>的路径前缀，只在重叠时给出警告，不加锁。</li>
+<li>队友 <code>updateTask(claim, expectedRevision)</code>：每次修改都是
+<strong>compare-and-set</strong>，<code>revision</code>
+每次加一，基于旧版本的更新会被拒绝。</li>
+<li><code>sendMessage(target, content)</code>：对目标做
+<strong>steer</strong> 投递。目标在运行，就在最近的 step
+边界插入；目标空闲，就开新
+turn；目标没加载，就冷恢复。返回只表示“进了对方
+inbox”，不表示对方已处理。没有 outbox，也没有重发去重。</li>
+<li><code>waitForChange(timeout 10 s–1 h)</code>：等任意团队状态变化。</li>
+<li>完成任务后把结果汇总回 Lead，再交还给用户。</li>
+</ol>
+<p><strong>实现细节：<strong>名册和任务的每次变更都以</strong>完整快照</strong>写进
+Lead 会话的事件日志，通过 session projection 回放给 Web 端。默认上限：16
+个成员、256 个任务、单条消息 64 KB。只有 Lead 能创建和打断队友。README
+写明的不支持项：独立工作目录、跨进程协调、任务 owner 的自动释放。</p>
+<h3 id="94-同一口径下-superagent-的工程链路">9.4 同一口径下 superagent
+的工程链路</h3>
+<p>Source 轮询 → <code>Engine.receive</code>（一个事务）→ 每 2 秒的 pass
+→ Gate → <code>assessment</code> effect，steer 进主 Session → 主 Session
+调 <code>orchestrator_route</code> →
+<code>Engine.decide</code>（一个事务内写工单、Mandate、订阅、派工、确认）→
+<code>reply</code> effect 和 <code>launch</code> effect → 占工位 →
+prepare（<code>git worktree</code>）→ 建执行器会话（执行器 preset）→ 以
+queue 模式发派工消息 → 执行器内的 ReAct 循环 →
+<code>orchestrator_ack</code>、<code>orchestrator_report(pr_number)</code>
+→ <code>claimPull</code> 和 <code>bindThread</code> → PR
+上的事件扇出，经 <code>delivery</code> effect steer 给执行器 →
+<code>report(ready)</code> → <code>relay</code> effect → 主 Session 调
+<code>orchestrator_reply(result)</code> → 人合并 PR →
+<code>threadClosed</code> → 工单结束。</p>
+<h3 id="95-从-agent-team-到-superagent-的伪代码-diff">9.5 从 Agent Team
+到 superagent 的伪代码 diff</h3>
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode diff"><code class="sourceCode diff"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="st">- lead = Agent(user_goal)                           # 一个人发起的一次协作</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="st">- lead.spawn(&quot;coder&quot;); lead.spawn(&quot;reviewer&quot;)       # 团队结构由 LLM 决定</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="st">- board.create(&quot;实现 X&quot;, blocked_by=[...])          # 拆任务由 LLM 决定，写进共享任务板</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="st">- coder.claim(task, rev); coder.send(&quot;reviewer&quot;, &quot;改好了，帮我看下&quot;)  # LLM 之间对话协调</span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="st">- lead.wait_for_change(); return lead.summary()     # 目标完成，团队解散</span></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a><span class="va">+ on event(e):                                      # 一个团队的事件流，永不结束</span></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a><span class="va">+     if owned_followup(e): ticket_of(e).worker.steer(e); return   # 归属由订阅关系决定，不由 LLM 决定</span></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a><span class="va">+     level = gate(e)                               # 授权由代码决定</span></span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a><span class="va">+     route = router_llm(card(e)) if level else IGNORE              # LLM 只分诊，不拆任务</span></span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a><span class="va">+     if route.accept: Ticket(e, Mandate(level)).launch()           # 一工单一会话一目录，彼此不对话</span></span></code></pre></div>
+<p><strong>于是：<strong>Agent Team
+擅长</strong>一个目标、多个角色、共享现场</strong>，代价是协调质量取决于
+Lead 的拆解能力，权限和状态都依附在 Lead 的会话里。superagent
+擅长<strong>很多零散目标、陆续到达、跨天延续、需要分清谁授权的</strong>场景，代价是工单之间几乎不协作，大任务只能交给单个执行器内部去分解。</p>
+<h3 id="96-同轴对比总表">9.6 同轴对比总表</h3>
+<table>
+<thead>
+<tr class="header">
+<th>维度</th>
+<th>单会话 ReAct</th>
+<th>Subagent</th>
+<th>Workflow</th>
+<th>Agent Team</th>
+<th>dsh-superagent</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>触发</strong></td>
+<td>用户一次 prompt</td>
+<td>父 agent 的一次工具调用</td>
+<td>父 agent 调 workflow 工具</td>
+<td>用户 → Lead；队友互发消息</td>
+<td>外部事件流，常驻</td>
+</tr>
+<tr class="even">
+<td><strong>谁拆分任务</strong></td>
+<td>模型隐式拆分</td>
+<td>父模型</td>
+<td>模型写的脚本</td>
+<td>Lead 模型 + 任务板</td>
+<td>不拆分：一个请求一个工单，执行器内部可再委派</td>
+</tr>
+<tr class="odd">
+<td><strong>协调介质</strong></td>
+<td>上下文</td>
+<td>工具调用与结果回填</td>
+<td>临时写的 JS 控制流</td>
+<td>peer 消息 + CAS 任务板</td>
+<td>领域对象（Thread、Ticket、Subscription）+ 分诊 LLM</td>
+</tr>
+<tr class="even">
+<td><strong>授权</strong></td>
+<td>隐式</td>
+<td>继承父会话</td>
+<td>继承父会话</td>
+<td>Lead 独享创建和打断</td>
+<td>代码 Gate + 不可变 Mandate + 重验证</td>
+</tr>
+<tr class="odd">
+<td><strong>状态存在哪</strong></td>
+<td>上下文</td>
+<td>父上下文 + 子会话日志</td>
+<td>脚本变量 + 子会话</td>
+<td>Lead 会话日志（快照）</td>
+<td>会话之外的 SQLite</td>
+</tr>
+<tr class="even">
+<td><strong>隔离</strong></td>
+<td>—</td>
+<td>独立上下文，常与父同目录</td>
+<td>同左</td>
+<td>独立上下文，共享目录</td>
+<td>独立会话 + 独立 worktree</td>
+</tr>
+<tr class="odd">
+<td><strong>生命周期</strong></td>
+<td>一次对话</td>
+<td>一次委派</td>
+<td>一次脚本运行</td>
+<td>一次团队任务（可冷恢复）</td>
+<td>无限期；结束的工单可被人一句话复活</td>
+</tr>
+<tr class="even">
+<td><strong>人如何介入</strong></td>
+<td>同一对话</td>
+<td>父对话</td>
+<td>父对话</td>
+<td>Lead 对话</td>
+<td>原始 GitHub 或飞书对话 + 面板</td>
+</tr>
+<tr class="odd">
+<td><strong>失败恢复</strong></td>
+<td>模型自愈</td>
+<td>父处理子的失败</td>
+<td>脚本处理</td>
+<td>名册记失败；任务不自动释放</td>
+<td>effect 退避、派工重试、重启恢复、等人</td>
+</tr>
+<tr class="even">
+<td><strong>适用的任务形状</strong></td>
+<td>一次性，步骤取决于观察</td>
+<td>需要隔离上下文的子任务</td>
+<td>步骤和并行度能预先写出</td>
+<td>一个大目标需要多角色并行</td>
+<td>团队长期、多来源、陆续到达的中小请求</td>
+</tr>
+</tbody>
+</table>
+<p>（表中 Subagent、Workflow、Agent Team 一列依据 DSH
+文档；dsh-superagent 一列依据本仓库代码和文档。数据截至
+2026-11-01，Agent Teams 仍是实验特性，接口可能变化。）</p>
+<p>**选型判据：**如果工作是“一个人提一个大目标，需要几个角色同时推进”，用
+Agent Team 或
+Workflow。如果工作是“一群人在几个渠道里陆续丢来零散请求，还会在几天里不断补充”，需要
+superagent
+这种事件驱动的工单内核。<strong>两者不互斥</strong>，真实系统多半是混合的：superagent
+的执行器本来就带 <code>subagent</code>
+工具，理论上也可以在执行器内部挂一个 Agent
+Team，用控制面管“接什么活”，用 Team 管“一个活怎么分工”。</p>
+<p>据二手报道，原文章用合成任务对比了 Super-agent 与“单会话 + Subagent
+工具”：前者完成更快、更稳定（p50/p95 为 12.4/15.7 分钟），代价是更多的
+cache-read token。本文没能取到原文核实，只作参考。</p>
+<hr />
+<h2 id="10-对你意味着什么">10. 对你意味着什么</h2>
+<p><strong>工程师可以直接抄的六件事：</strong></p>
+<ol type="1">
+<li><strong>事务性 outbox。</strong> 领域命令同步执行、不做
+I/O；对外动作作为 effect
+行与状态同事务提交，提交后再执行，适配器以过去时的事实回报。只要你的 LLM
+系统有副作用（发消息、开 PR、调 API），就值得这么做。</li>
+<li><strong>授权分三层。</strong> 代码 Gate 决定强度，不可变 Mandate
+记录依据，prompt
+只能收紧。把“外部文本只是数据”写进优先级金字塔，并且让代码真的执行它。</li>
+<li><strong>路由器只分诊。</strong> 给路由备注设硬上限（30
+词），强制执行者读原文；给路由器加“不许阻塞”的
+guard，长任务一律转后台，完成后以消息形式回来。</li>
+<li><strong>让 agent 可被打断。</strong> 前台命令 5 秒转后台，配合 steer
+语义，让人的新消息在下一个 step 就能进入模型。</li>
+<li><strong>主动行为先上影子模式。</strong> observe
+只记“会接什么”，人审过之后再放权。研判必须逐规则表态，并附原文证据。</li>
+<li><strong>给“模型能看到的一切”写测试。</strong>
+<code>tests/model-surface.spec.ts</code> 用工具
+schema、术语表和每个角色的体积预算，检查所有提示词、工具描述和输入；<code>tests/docs.spec.ts</code>
+要求编号文档只能引用排在前面的文档；<code>tests/class-docs.spec.ts</code>
+要求每个类都有 JSDoc。</li>
+</ol>
+<p>**产品侧该盯的指标：**每个工单打扰人的次数（确认、提问、结果），从确认到
+ready 的时长，observe 模式下 would_accept
+被人认可的比例（相当于主动接单的精确率），handback 率，Eval unavailable
+率，blocked/failed 率，PR
+合并率。项目的设计目标落到指标上就是一句话：<strong>单位人类注意力换来的、被合并的改动。</strong></p>
+<hr />
+<h2 id="11-证据表与局限">11. 证据表与局限</h2>
+<table>
+<thead>
+<tr class="header">
+<th>主张</th>
+<th>出处</th>
+<th>性质</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>研究原型，非官方产品，与文章和内部版本不完全一致</td>
+<td><code>README.md</code></td>
+<td>文档原文</td>
+</tr>
+<tr class="even">
+<td>唯一目标函数：最少的人类注意力换最多的价值</td>
+<td><code>docs/000-philosophy.md</code></td>
+<td>文档原文</td>
+</tr>
+<tr class="odd">
+<td>Engine 是领域状态的唯一写者，同步、单事务，core 不做 I/O</td>
+<td><code>docs/007-architecture.md</code>；<code>src/core/engine.ts</code></td>
+<td>文档 + 代码</td>
+</tr>
+<tr class="even">
+<td>Gate 的判定规则与准入表默认值</td>
+<td><code>src/policy.ts:191</code>；<code>src/admission.ts</code>；<code>docs/002-authorization.md</code></td>
+<td>代码</td>
+</tr>
+<tr class="odd">
+<td>研判必须逐规则表态，observe 下记 would_accept</td>
+<td><code>src/policy.ts:40</code>；<code>prompts/admission.md</code></td>
+<td>代码 + 提示词</td>
+</tr>
+<tr class="even">
+<td>Eval 默认 120 秒，超时重排 2 次后记 unavailable</td>
+<td><code>src/policy.ts</code>（<code>timeoutSeconds</code> 默认
+120）；<code>src/core/evals.ts:19</code></td>
+<td>代码</td>
+</tr>
+<tr class="odd">
+<td>默认 3 个工位，另留 1 个给人；后台工作最长 30 分钟；瞬时故障重试 3
+次</td>
+<td><code>src/policy.ts</code>（<code>maxWorkers</code> 默认
+3）；<code>src/executor/dsh.ts:30,32,171</code></td>
+<td>代码</td>
+</tr>
+<tr class="even">
+<td>执行器和路由器的 preset：前台 shell 5 秒转后台</td>
+<td><code>cordis.patch.yml</code></td>
+<td>配置</td>
+</tr>
+<tr class="odd">
+<td>主 Session 的 noWait guard</td>
+<td><code>src/app/sessions.ts:77</code></td>
+<td>代码</td>
+</tr>
+<tr class="even">
+<td>IM 100 词硬上限，每条回复有用途和前置条件</td>
+<td><code>src/core/replies.ts</code>；<code>prompts/replies.md</code></td>
+<td>代码 + 提示词</td>
+</tr>
+<tr class="odd">
+<td>不是安全边界；没有数据清理</td>
+<td><code>docs/003-execution.md</code>、<code>docs/006-deployment.md</code>、<code>docs/007-architecture.md</code></td>
+<td>文档原文</td>
+</tr>
+<tr class="even">
+<td>DSH 的 turn/step 循环、inbox 的 steer/queue/inject 语义</td>
+<td>DSH
+<code>docs/architecture.md</code>、<code>docs/agent-lifecycle.md</code></td>
+<td>文档</td>
+</tr>
+<tr class="odd">
+<td>DSH Agent Teams 的结构、CAS 任务板、默认上限、不支持项</td>
+<td>DSH
+<code>docs/subsystems/agent-team.md</code>、<code>packages/experimental/agent-team/README.md</code></td>
+<td>文档</td>
+</tr>
+<tr class="even">
+<td>DSH Subagent、Workflow、Ralph 的定义</td>
+<td>DSH
+<code>docs/subsystems/subagent.md</code>、<code>workflow.md</code>、<code>docs/glossary.md</code></td>
+<td>文档</td>
+</tr>
+<tr class="odd">
+<td>一个人只能盯 3–5 个会话；p50/p95 12.4/15.7 分钟；cache-read token
+更多</td>
+<td>关于原文章的二手报道</td>
+<td><strong>二手，未核实</strong></td>
+</tr>
+<tr class="even">
+<td>“为什么不用 DSH 的 Agent Teams 或 webhook”</td>
+<td>由 <code>docs/001-domain.md</code> 的 Rejected concepts 推断</td>
+<td><strong>推断</strong></td>
+</tr>
+<tr class="odd">
+<td>“@ 触发型仓库 agent”的形态</td>
+<td>对公开产品形态的概括</td>
+<td><strong>概括，非实测</strong></td>
+</tr>
+</tbody>
+</table>
+<p><strong>局限：</strong></p>
+<ol type="1">
+<li>原文章《Exploring Super-agent
+Design》没能取到（所在网络环境无法访问相关站点），引用的实验数字都来自二手报道。</li>
+<li>没有在本地运行仓库测试：依赖 21 个 DSH peer
+包，未安装。本文对行为的描述来自代码阅读和文档，不是运行观察。</li>
+<li>Agent Teams 在 DSH 中是实验特性，§9 的对比以 2026-11-01
+的主分支为准。</li>
+</ol>
+</body>
+</html>

@@ -1,0 +1,153 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 630" role="img" aria-labelledby="l0t l0d">
+  <title id="l0t">dsh-superagent 系统形状（L0）</title>
+  <desc id="l0d">LLM 只出现在两处：路由（主 Session）和执行（每个工单一个执行器 Session）。谁能触发、谁被授权、工单处于什么状态，全部由确定性内核 Engine 和 SQLite 决定；所有离开内核的动作都先落盘再异步执行。</desc>
+  <style>
+    svg { --bg:#ffffff; --ink:#1f2328; --muted:#57606a; --code-fill:#f6f8fa; --code-stroke:#24292f; --llm-fill:#fff4e5; --llm-stroke:#b35900;
+          --ext-fill:#eef6ff; --ext-stroke:#0969da; --store-fill:#eaf7ee; --store-stroke:#1a7f37; --edge:#424a53; --accent:#cf222e; --frame:#57606a;
+          font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Noto Sans CJK SC", "Source Han Sans SC", "Microsoft YaHei", "WenQuanYi Zen Hei", sans-serif; }
+    @media (prefers-color-scheme: dark) {
+      svg { --bg:#0d1117; --ink:#e6edf3; --muted:#9da7b3; --code-fill:#161b22; --code-stroke:#c9d1d9; --llm-fill:#2b1d0c; --llm-stroke:#f0a14a;
+            --ext-fill:#0c2340; --ext-stroke:#58a6ff; --store-fill:#0f2a1a; --store-stroke:#3fb950; --edge:#adbac7; --accent:#ff7b72; --frame:#8b949e; }
+    }
+    .bg { fill: var(--bg); }
+    .code { fill: var(--code-fill); stroke: var(--code-stroke); stroke-width: 1.5; }
+    .frame { fill: none; stroke: var(--frame); stroke-width: 2.5; }
+    .llm { fill: var(--llm-fill); stroke: var(--llm-stroke); stroke-width: 1.5; }
+    .llm2 { fill: none; stroke: var(--llm-stroke); stroke-width: 1; }
+    .ext { fill: var(--ext-fill); stroke: var(--ext-stroke); stroke-width: 1.5; }
+    .store { fill: var(--store-fill); stroke: var(--store-stroke); stroke-width: 1.5; }
+    .t { fill: var(--ink); font-size: 15px; font-weight: 600; }
+    .s { fill: var(--muted); font-size: 12.5px; }
+    .lab { fill: var(--ink); font-size: 12.5px; }
+    .labA { fill: var(--accent); font-size: 12.5px; font-weight: 600; }
+    .h { fill: var(--muted); font-size: 12.5px; font-weight: 600; letter-spacing: .5px; }
+    .e { stroke: var(--edge); stroke-width: 1.6; fill: none; marker-end: url(#arr); }
+    .ea { stroke: var(--edge); stroke-width: 1.6; fill: none; stroke-dasharray: 7 5; marker-end: url(#arr); }
+    .eb { stroke: var(--accent); stroke-width: 2; fill: none; stroke-dasharray: 2 4 10 4; marker-end: url(#arrA); }
+    .ah { fill: var(--edge); } .ahA { fill: var(--accent); }
+  </style>
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path class="ah" d="M0,0 L10,5 L0,10 z"/></marker>
+    <marker id="arrA" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path class="ahA" d="M0,0 L10,5 L0,10 z"/></marker>
+  </defs>
+  <rect class="bg" x="0" y="0" width="1100" height="630"/>
+
+  <!-- External conversations -->
+  <text class="h" x="22" y="180">外部对话</text>
+  <rect class="ext" x="20" y="195" width="170" height="64" rx="32"/>
+  <text class="t" x="105" y="222" text-anchor="middle">GitHub</text>
+  <text class="s" x="105" y="243" text-anchor="middle">Issue · PR · 评审 · CI</text>
+  <rect class="ext" x="20" y="285" width="170" height="64" rx="32"/>
+  <text class="t" x="105" y="312" text-anchor="middle">飞书</text>
+  <text class="s" x="105" y="333" text-anchor="middle">群聊 · 话题 · 私聊</text>
+
+  <!-- Source plugin -->
+  <rect class="code" x="228" y="212" width="132" height="120"/>
+  <text class="t" x="294" y="240" text-anchor="middle">Source 插件</text>
+  <text class="s" x="294" y="263" text-anchor="middle">轮询 / 事件流</text>
+  <text class="s" x="294" y="282" text-anchor="middle">滤掉自己的消息</text>
+  <text class="s" x="294" y="301" text-anchor="middle">翻译成 Trigger</text>
+  <path class="e" d="M190,232 L226,250"/>
+  <path class="e" d="M190,312 L226,292"/>
+
+  <!-- Engine frame -->
+  <rect class="frame" x="392" y="190" width="412" height="200"/>
+  <text class="h" x="404" y="380">确定性内核 Engine（同步事务 · 状态的唯一写者）</text>
+  <path class="e" d="M360,265 L403,265"/>
+
+  <rect class="code" x="406" y="226" width="116" height="80"/>
+  <text class="t" x="464" y="248" text-anchor="middle">Intake</text>
+  <text class="s" x="464" y="270" text-anchor="middle">同 id 只存一次</text>
+  <text class="s" x="464" y="289" text-anchor="middle">归入 Thread</text>
+
+  <rect class="code" x="542" y="226" width="116" height="80"/>
+  <text class="t" x="600" y="248" text-anchor="middle">Eval</text>
+  <text class="s" x="600" y="270" text-anchor="middle">Gate：代码判权</text>
+  <text class="s" x="600" y="289" text-anchor="middle">每 Thread 串行</text>
+
+  <rect class="code" x="678" y="226" width="116" height="80"/>
+  <text class="t" x="736" y="248" text-anchor="middle">Ticket</text>
+  <text class="s" x="736" y="270" text-anchor="middle">Mandate · 订阅</text>
+  <text class="s" x="736" y="289" text-anchor="middle">派工 · 阶段</text>
+
+  <path class="e" d="M522,264 L540,264"/>
+  <path class="e" d="M658,264 L676,264"/>
+
+  <!-- Bypass fan-out (inside frame, below boxes) -->
+  <path class="eb" d="M464,306 L464,352 L968,352 L968,338"/>
+  <text class="labA" x="478" y="344">已订阅 Thread 上的后续消息：直达执行器，不经 Eval</text>
+
+  <!-- SQLite -->
+  <path class="store" d="M470,438 a128,12 0 0,1 256,0 v58 a128,12 0 0,1 -256,0 z"/>
+  <path class="store" d="M470,438 a128,12 0 0,0 256,0" style="fill:none"/>
+  <text class="t" x="598" y="472" text-anchor="middle">SQLite</text>
+  <text class="s" x="598" y="492" text-anchor="middle">领域对象 · effect 队列 · outbox 回执</text>
+  <path class="e" d="M598,390 L598,424"/>
+  <text class="lab" x="608" y="412">读 / 写</text>
+
+  <!-- Main Session (router LLM) -->
+  <rect class="llm" x="500" y="40" width="210" height="90" rx="14"/>
+  <rect class="llm2" x="505" y="45" width="200" height="80" rx="11"/>
+  <text class="t" x="605" y="72" text-anchor="middle">主 Session（路由 LLM）</text>
+  <text class="s" x="605" y="94" text-anchor="middle">只看卡片 · 不读代码</text>
+  <text class="s" x="605" y="112" text-anchor="middle">从不等待 · 结束即空闲</text>
+  <path class="ea" d="M580,226 L580,132"/>
+  <text class="lab" x="572" y="160" text-anchor="end">候选卡片</text>
+  <path class="e" d="M670,130 L722,224"/>
+  <text class="lab" x="704" y="160">route：accept / attach</text>
+  <text class="lab" x="704" y="177">/ stop / ignore</text>
+
+  <!-- Workers stack -->
+  <rect class="llm" x="888" y="196" width="200" height="120" rx="14" opacity=".55"/>
+  <rect class="llm" x="878" y="206" width="200" height="120" rx="14" opacity=".8"/>
+  <rect class="llm" x="868" y="216" width="200" height="120" rx="14"/>
+  <rect class="llm2" x="873" y="221" width="190" height="110" rx="11"/>
+  <text class="t" x="968" y="246" text-anchor="middle">执行器 Session × N</text>
+  <text class="s" x="968" y="268" text-anchor="middle">一个工单 = 一个会话</text>
+  <text class="s" x="968" y="286" text-anchor="middle">+ 一个 git worktree</text>
+  <text class="s" x="968" y="304" text-anchor="middle">内部仍是 ReAct 工具循环</text>
+  <text class="s" x="968" y="322" text-anchor="middle">gh / lark-cli 直接开 PR</text>
+  <path class="ea" d="M794,250 L866,250"/>
+  <text class="lab" x="831" y="226" text-anchor="middle">派工</text>
+  <text class="lab" x="831" y="242" text-anchor="middle">Inputs</text>
+  <path class="e" d="M866,286 L796,286"/>
+  <text class="lab" x="836" y="304" text-anchor="middle">report</text>
+  <text class="lab" x="836" y="319" text-anchor="middle">ack</text>
+  <text class="lab" x="836" y="334" text-anchor="middle">handback</text>
+
+  <!-- Channel back -->
+  <rect class="code" x="228" y="445" width="150" height="70"/>
+  <text class="t" x="303" y="473" text-anchor="middle">Channel 回写</text>
+  <text class="s" x="303" y="495" text-anchor="middle">同工单同对话保序</text>
+  <path class="ea" d="M468,470 L380,476"/>
+  <text class="lab" x="424" y="462" text-anchor="middle">outbox 行</text>
+  <path class="ea" d="M262,445 L150,352"/>
+  <text class="lab" x="196" y="402" text-anchor="end">回到发起</text>
+  <text class="lab" x="196" y="418" text-anchor="end">请求的对话</text>
+
+  <!-- Panel -->
+  <rect class="code" x="868" y="440" width="200" height="76"/>
+  <text class="t" x="968" y="468" text-anchor="middle">面板（给运维的人）</text>
+  <text class="s" x="968" y="490" text-anchor="middle">只列等人处理的事</text>
+  <text class="s" x="968" y="507" text-anchor="middle">停止 · 重试 · 改策略</text>
+  <path class="ea" d="M728,470 L866,476"/>
+  <text class="lab" x="796" y="462" text-anchor="middle">视图</text>
+
+  <!-- Legend -->
+  <g transform="translate(20,560)">
+    <rect class="code" x="0" y="0" width="34" height="22"/>
+    <text class="lab" x="42" y="16">确定性代码</text>
+    <rect class="llm" x="140" y="0" width="34" height="22" rx="7"/><rect class="llm2" x="143" y="3" width="28" height="16" rx="5"/>
+    <text class="lab" x="182" y="16">LLM 会话</text>
+    <rect class="ext" x="270" y="0" width="44" height="22" rx="11"/>
+    <text class="lab" x="322" y="16">外部系统</text>
+    <path class="store" d="M410,4 a16,4 0 0,1 32,0 v14 a16,4 0 0,1 -32,0 z"/>
+    <text class="lab" x="450" y="16">持久状态</text>
+    <path class="e" d="M540,11 L590,11"/>
+    <text class="lab" x="598" y="16">同步调用 / 进入内核的事件</text>
+    <path class="ea" d="M780,11 L830,11"/>
+    <text class="lab" x="838" y="16">先落盘、再异步执行的副作用</text>
+    <path class="eb" d="M540,46 L590,46"/>
+    <text class="lab" x="598" y="51">订阅扇出：绕过 Eval 的那条路</text>
+  </g>
+</svg>

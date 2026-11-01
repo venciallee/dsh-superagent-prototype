@@ -1,0 +1,116 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1060 560" role="img" aria-labelledby="l1kt l1kd">
+  <title id="l1kt">决定先落盘，再执行（L1：放大 L0 的 Engine 与 SQLite）</title>
+  <desc id="l1kd">Engine 只写数据库、不做 I/O；所有对外动作先作为 effect 行与领域状态在同一个 SQLite 事务里提交，提交后由带并发上限和指数退避的分发器执行；适配器把结果作为过去时的事实交回 Engine，开启新的事务。崩溃或重启后，没做完的事仍在队列里。</desc>
+  <style>
+    svg { --bg:#ffffff; --ink:#1f2328; --muted:#57606a; --code-fill:#f6f8fa; --code-stroke:#24292f; --llm-fill:#fff4e5; --llm-stroke:#b35900;
+          --ext-fill:#eef6ff; --ext-stroke:#0969da; --store-fill:#eaf7ee; --store-stroke:#1a7f37; --edge:#424a53; --frame:#57606a;
+          font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Noto Sans CJK SC", "Source Han Sans SC", "Microsoft YaHei", "WenQuanYi Zen Hei", sans-serif; }
+    @media (prefers-color-scheme: dark) {
+      svg { --bg:#0d1117; --ink:#e6edf3; --muted:#9da7b3; --code-fill:#161b22; --code-stroke:#c9d1d9; --llm-fill:#2b1d0c; --llm-stroke:#f0a14a;
+            --ext-fill:#0c2340; --ext-stroke:#58a6ff; --store-fill:#0f2a1a; --store-stroke:#3fb950; --edge:#adbac7; --frame:#8b949e; }
+    }
+    .bg { fill: var(--bg); }
+    .code { fill: var(--code-fill); stroke: var(--code-stroke); stroke-width: 1.5; }
+    .tx { fill: none; stroke: var(--frame); stroke-width: 2; stroke-dasharray: 10 5; }
+    .llm { fill: var(--llm-fill); stroke: var(--llm-stroke); stroke-width: 1.5; }
+    .ext { fill: var(--ext-fill); stroke: var(--ext-stroke); stroke-width: 1.5; }
+    .store { fill: var(--store-fill); stroke: var(--store-stroke); stroke-width: 1.5; }
+    .t { fill: var(--ink); font-size: 14.5px; font-weight: 600; }
+    .s { fill: var(--muted); font-size: 12.5px; }
+    .lab { fill: var(--ink); font-size: 12.5px; }
+    .h { fill: var(--muted); font-size: 12.5px; font-weight: 600; }
+    .e { stroke: var(--edge); stroke-width: 1.6; fill: none; marker-end: url(#arr); }
+    .ea { stroke: var(--edge); stroke-width: 1.6; fill: none; stroke-dasharray: 7 5; marker-end: url(#arr); }
+    .ah { fill: var(--edge); }
+  </style>
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path class="ah" d="M0,0 L10,5 L0,10 z"/></marker>
+  </defs>
+  <rect class="bg" x="0" y="0" width="1060" height="560"/>
+
+  <!-- Callers -->
+  <text class="h" x="20" y="40">调用方（请求用祈使句，可被拒绝）</text>
+  <rect class="ext" x="20" y="56" width="210" height="48" rx="24"/>
+  <text class="t" x="125" y="85" text-anchor="middle">Source：receive()</text>
+  <rect class="llm" x="20" y="120" width="210" height="48" rx="12"/>
+  <text class="t" x="125" y="149" text-anchor="middle">主 Session：decide / attach</text>
+  <rect class="llm" x="20" y="184" width="210" height="48" rx="12"/>
+  <text class="t" x="125" y="213" text-anchor="middle">执行器：report / handback</text>
+  <rect class="code" x="20" y="248" width="210" height="48"/>
+  <text class="t" x="125" y="277" text-anchor="middle">面板：stop / retry</text>
+  <path class="e" d="M230,80 L276,140"/>
+  <path class="e" d="M230,144 L276,150"/>
+  <path class="e" d="M230,208 L276,160"/>
+  <path class="e" d="M230,272 L276,170"/>
+
+  <!-- Transaction frame -->
+  <rect class="tx" x="262" y="56" width="330" height="372"/>
+  <text class="h" x="276" y="78">同一个 SQLite 事务</text>
+  <rect class="code" x="278" y="104" width="298" height="84"/>
+  <text class="t" x="427" y="132" text-anchor="middle">Engine 命令</text>
+  <text class="s" x="427" y="154" text-anchor="middle">同步执行 · 无 I/O · 唯一写者</text>
+  <text class="s" x="427" y="172" text-anchor="middle">非法请求抛 UserError，整体回滚</text>
+  <path class="e" d="M348,188 L348,232"/>
+  <path class="e" d="M506,188 L506,232"/>
+  <text class="lab" x="358" y="214">写</text>
+  <text class="lab" x="516" y="214">enqueue</text>
+
+  <path class="store" d="M278,246 a70,10 0 0,1 140,0 v120 a70,10 0 0,1 -140,0 z"/>
+  <path class="store" d="M278,246 a70,10 0 0,0 140,0" style="fill:none"/>
+  <text class="t" x="348" y="290" text-anchor="middle">领域状态</text>
+  <text class="s" x="348" y="312" text-anchor="middle">trigger · thread</text>
+  <text class="s" x="348" y="330" text-anchor="middle">ticket · decision</text>
+  <text class="s" x="348" y="348" text-anchor="middle">disposition</text>
+
+  <path class="store" d="M432,246 a74,10 0 0,1 148,0 v120 a74,10 0 0,1 -148,0 z"/>
+  <path class="store" d="M432,246 a74,10 0 0,0 148,0" style="fill:none"/>
+  <text class="t" x="506" y="290" text-anchor="middle">effect 队列</text>
+  <text class="s" x="506" y="312" text-anchor="middle">每 (kind, key) 一行</text>
+  <text class="s" x="506" y="330" text-anchor="middle">同 key 合并、保留次序</text>
+  <text class="s" x="506" y="348" text-anchor="middle">+ outbox 回执</text>
+
+  <!-- Dispatcher -->
+  <path class="e" d="M580,306 L630,306"/>
+  <rect class="code" x="632" y="236" width="170" height="140"/>
+  <text class="t" x="717" y="262" text-anchor="middle">Effects 分发器</text>
+  <text class="h" x="717" y="228" text-anchor="middle">事务提交后才运行</text>
+  <text class="s" x="717" y="288" text-anchor="middle">按 kind 的并发上限</text>
+  <text class="s" x="717" y="306" text-anchor="middle">失败指数退避</text>
+  <text class="s" x="717" y="324" text-anchor="middle">连续 3 次失败才报警</text>
+  <text class="s" x="717" y="342" text-anchor="middle">槽满 / 暂停：Later，</text>
+  <text class="s" x="717" y="360" text-anchor="middle">推迟但不计失败</text>
+
+  <!-- Handlers -->
+  <text class="h" x="842" y="40">提交后才发生的副作用</text>
+  <g>
+    <rect class="code" x="842" y="52" width="200" height="54"/>
+    <text class="t" x="852" y="74">assessment</text>
+    <text class="s" x="852" y="94">候选卡片 steer 进主 Session</text>
+    <rect class="code" x="842" y="116" width="200" height="54"/>
+    <text class="t" x="852" y="138">launch</text>
+    <text class="s" x="852" y="158">worktree + 执行器 Session</text>
+    <rect class="code" x="842" y="180" width="200" height="54"/>
+    <text class="t" x="852" y="202">delivery</text>
+    <text class="s" x="852" y="222">Inputs 按序 steer 给执行器</text>
+    <rect class="code" x="842" y="244" width="200" height="54"/>
+    <text class="t" x="852" y="266">relay（有序）</text>
+    <text class="s" x="852" y="286">报告 / 提问 steer 给主 Session</text>
+    <rect class="code" x="842" y="308" width="200" height="54"/>
+    <text class="t" x="852" y="330">notice（有序）</text>
+    <text class="s" x="852" y="350">inject，不唤醒主 Session</text>
+    <rect class="code" x="842" y="372" width="200" height="54"/>
+    <text class="t" x="852" y="394">reply</text>
+    <text class="s" x="852" y="414">同工单同对话保序，5 s→300 s</text>
+  </g>
+  <path class="ea" d="M802,258 L840,80"/>
+  <path class="ea" d="M802,270 L840,143"/>
+  <path class="ea" d="M802,285 L840,207"/>
+  <path class="ea" d="M802,300 L840,271"/>
+  <path class="ea" d="M802,330 L840,335"/>
+  <path class="ea" d="M802,360 L840,399"/>
+
+  <!-- Feedback facts -->
+  <path class="e" d="M942,426 L942,478 L427,478 L427,430"/>
+  <text class="lab" x="684" y="500" text-anchor="middle">适配器把结果作为“过去时的事实”交回：assignmentStarted · inputsDelivered · deliveryFailed · turnEnded</text>
+  <text class="lab" x="684" y="518" text-anchor="middle">每个事实开启一个新事务；崩溃发生在任何一步，未完成的 effect 行都还在</text>
+</svg>

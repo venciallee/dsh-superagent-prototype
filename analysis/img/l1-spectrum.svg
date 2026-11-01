@@ -1,0 +1,163 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1120 640" role="img" aria-labelledby="l1st l1sd">
+  <title id="l1st">四种 Agent 架构在“触发 · 授权 · 状态 · 执行”四个轴上的取值</title>
+  <desc id="l1sd">单 Session ReAct、Subagent、Agent Team 都是由一个人发起一次任务、由 LLM 之间的对话来协调；dsh-superagent 把触发换成外部事件流，把授权和状态从 LLM 上下文里移到代码和数据库中，LLM 只负责路由和执行单个工单。</desc>
+  <style>
+    svg { --bg:#ffffff; --ink:#1f2328; --muted:#57606a; --code-fill:#f6f8fa; --code-stroke:#24292f; --llm-fill:#fff4e5; --llm-stroke:#b35900;
+          --ext-fill:#eef6ff; --ext-stroke:#0969da; --store-fill:#eaf7ee; --store-stroke:#1a7f37; --edge:#424a53; --panel:#d0d7de; --hl:#fff8c5;
+          font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Noto Sans CJK SC", "Source Han Sans SC", "Microsoft YaHei", "WenQuanYi Zen Hei", sans-serif; }
+    @media (prefers-color-scheme: dark) {
+      svg { --bg:#0d1117; --ink:#e6edf3; --muted:#9da7b3; --code-fill:#161b22; --code-stroke:#c9d1d9; --llm-fill:#2b1d0c; --llm-stroke:#f0a14a;
+            --ext-fill:#0c2340; --ext-stroke:#58a6ff; --store-fill:#0f2a1a; --store-stroke:#3fb950; --edge:#adbac7; --panel:#30363d; --hl:#2e2a12; }
+    }
+    .bg { fill: var(--bg); }
+    .panel { fill: none; stroke: var(--panel); stroke-width: 1.5; }
+    .hlp { fill: var(--hl); stroke: var(--panel); stroke-width: 1.5; }
+    .code { fill: var(--code-fill); stroke: var(--code-stroke); stroke-width: 1.5; }
+    .gate { fill: var(--code-fill); stroke: var(--code-stroke); stroke-width: 3; }
+    .llm { fill: var(--llm-fill); stroke: var(--llm-stroke); stroke-width: 1.5; }
+    .llm2 { fill: none; stroke: var(--llm-stroke); stroke-width: 1; }
+    .ext { fill: var(--ext-fill); stroke: var(--ext-stroke); stroke-width: 1.5; }
+    .store { fill: var(--store-fill); stroke: var(--store-stroke); stroke-width: 1.5; }
+    .person { fill: none; stroke: var(--ink); stroke-width: 1.6; }
+    .title { fill: var(--ink); font-size: 16px; font-weight: 700; }
+    .t { fill: var(--ink); font-size: 13.5px; font-weight: 600; }
+    .s { fill: var(--muted); font-size: 12px; }
+    .ax { fill: var(--ink); font-size: 12.5px; font-weight: 700; }
+    .v { fill: var(--ink); font-size: 12.5px; }
+    .lab { fill: var(--muted); font-size: 11.5px; }
+    .e { stroke: var(--edge); stroke-width: 1.5; fill: none; marker-end: url(#arr); }
+    .ea { stroke: var(--edge); stroke-width: 1.5; fill: none; stroke-dasharray: 6 4; marker-end: url(#arr); }
+    .ln { stroke: var(--edge); stroke-width: 1.5; fill: none; }
+    .lnd { stroke: var(--edge); stroke-width: 1.2; fill: none; stroke-dasharray: 3 3; }
+    .ah { fill: var(--edge); }
+  </style>
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="ah" d="M0,0 L10,5 L0,10 z"/></marker>
+  </defs>
+  <rect class="bg" x="0" y="0" width="1120" height="640"/>
+
+  <!-- Panels -->
+  <rect class="panel" x="12" y="12" width="266" height="562" rx="8"/>
+  <rect class="panel" x="290" y="12" width="266" height="562" rx="8"/>
+  <rect class="panel" x="568" y="12" width="266" height="562" rx="8"/>
+  <rect class="hlp" x="846" y="12" width="266" height="562" rx="8"/>
+  <text class="title" x="145" y="40" text-anchor="middle">单 Session ReAct</text>
+  <text class="title" x="423" y="40" text-anchor="middle">Subagent 委派</text>
+  <text class="title" x="701" y="40" text-anchor="middle">Agent Team</text>
+  <text class="title" x="979" y="40" text-anchor="middle">dsh-superagent</text>
+
+  <!-- A: ReAct -->
+  <g>
+    <circle class="person" cx="44" cy="84" r="9"/><path class="person" d="M30,112 q14,-20 28,0"/>
+    <path class="e" d="M62,96 L96,96"/>
+    <rect class="llm" x="98" y="66" width="164" height="62" rx="12"/><rect class="llm2" x="102" y="70" width="156" height="54" rx="9"/>
+    <text class="t" x="180" y="92" text-anchor="middle">Agent 循环</text>
+    <text class="s" x="180" y="112" text-anchor="middle">思考 → 工具 → 观察</text>
+    <rect class="code" x="120" y="196" width="120" height="40"/>
+    <text class="t" x="180" y="221" text-anchor="middle">工具 / 环境</text>
+    <path class="e" d="M160,128 L160,194"/>
+    <path class="e" d="M200,196 L200,130"/>
+    <text class="lab" x="154" y="166" text-anchor="end">动作</text>
+    <text class="lab" x="206" y="166">观察</text>
+    <text class="s" x="145" y="270" text-anchor="middle">一个会话从头跑到尾</text>
+  </g>
+
+  <!-- B: Subagent -->
+  <g>
+    <circle class="person" cx="322" cy="84" r="9"/><path class="person" d="M308,112 q14,-20 28,0"/>
+    <path class="e" d="M340,96 L374,96"/>
+    <rect class="llm" x="376" y="66" width="164" height="62" rx="12"/><rect class="llm2" x="380" y="70" width="156" height="54" rx="9"/>
+    <text class="t" x="458" y="92" text-anchor="middle">父 Agent</text>
+    <text class="s" x="458" y="112" text-anchor="middle">把子任务当作工具调用</text>
+    <rect class="llm" x="376" y="190" width="164" height="54" rx="12"/><rect class="llm2" x="380" y="194" width="156" height="46" rx="9"/>
+    <text class="t" x="458" y="214" text-anchor="middle">子 Agent</text>
+    <text class="s" x="458" y="232" text-anchor="middle">独立上下文，用完即止</text>
+    <path class="ea" d="M430,128 L430,188"/>
+    <path class="e" d="M486,190 L486,130"/>
+    <text class="lab" x="424" y="164" text-anchor="end">spawn(prompt)</text>
+    <text class="lab" x="492" y="164">结果回填</text>
+    <text class="s" x="423" y="270" text-anchor="middle">树状：父等待或被通知</text>
+  </g>
+
+  <!-- C: Agent Team -->
+  <g>
+    <circle class="person" cx="600" cy="84" r="9"/><path class="person" d="M586,112 q14,-20 28,0"/>
+    <path class="e" d="M618,96 L652,96"/>
+    <rect class="llm" x="654" y="70" width="164" height="52" rx="12"/><rect class="llm2" x="658" y="74" width="156" height="44" rx="9"/>
+    <text class="t" x="736" y="94" text-anchor="middle">Lead</text>
+    <text class="s" x="736" y="111" text-anchor="middle">拆任务、建队友</text>
+    <rect class="llm" x="584" y="160" width="112" height="44" rx="10"/>
+    <text class="t" x="640" y="187" text-anchor="middle">队友 coder</text>
+    <rect class="llm" x="712" y="160" width="112" height="44" rx="10"/>
+    <text class="t" x="768" y="187" text-anchor="middle">队友 reviewer</text>
+    <path class="e" d="M700,122 L652,158"/>
+    <path class="e" d="M772,122 L772,158"/>
+    <path class="e" d="M696,176 L710,176"/>
+    <path class="e" d="M712,192 L698,192"/>
+    <path class="store" d="M612,226 a89,8 0 0,1 178,0 v30 a89,8 0 0,1 -178,0 z"/>
+    <path class="store" d="M612,226 a89,8 0 0,0 178,0" style="fill:none"/>
+    <text class="s" x="701" y="250" text-anchor="middle">共享任务板（DAG · CAS）</text>
+    <path class="lnd" d="M640,204 L650,220"/>
+    <path class="lnd" d="M768,204 L756,220"/>
+    <text class="s" x="701" y="282" text-anchor="middle">队友互发消息 · 共享一个目录</text>
+  </g>
+
+  <!-- D: dsh-superagent -->
+  <g>
+    <rect class="ext" x="856" y="62" width="78" height="28" rx="14"/>
+    <text class="s" x="895" y="81" text-anchor="middle">GitHub</text>
+    <rect class="ext" x="856" y="98" width="78" height="28" rx="14"/>
+    <text class="s" x="895" y="117" text-anchor="middle">飞书</text>
+    <path class="e" d="M934,76 L958,90"/>
+    <path class="e" d="M934,112 L958,102"/>
+    <rect class="gate" x="960" y="66" width="140" height="62"/>
+    <text class="t" x="1030" y="90" text-anchor="middle">内核（代码）</text>
+    <text class="s" x="1030" y="110" text-anchor="middle">Gate · 工单 · SQLite</text>
+    <rect class="llm" x="856" y="150" width="120" height="44" rx="10"/><rect class="llm2" x="860" y="154" width="112" height="36" rx="8"/>
+    <text class="t" x="916" y="177" text-anchor="middle">路由 LLM</text>
+    <path class="ea" d="M980,128 L956,148"/>
+    <path class="e" d="M966,150 L996,130"/>
+    <path class="ln" d="M1060,128 L1060,216"/>
+    <path class="ln" d="M890,216 L1060,216"/>
+    <path class="ea" d="M890,216 L890,232"/>
+    <path class="ea" d="M975,216 L975,232"/>
+    <path class="ea" d="M1060,216 L1060,232"/>
+    <rect class="llm" x="856" y="234" width="68" height="40" rx="9"/>
+    <text class="s" x="890" y="252" text-anchor="middle">工单 1</text><text class="s" x="890" y="267" text-anchor="middle">+ 目录</text>
+    <rect class="llm" x="941" y="234" width="68" height="40" rx="9"/>
+    <text class="s" x="975" y="252" text-anchor="middle">工单 2</text><text class="s" x="975" y="267" text-anchor="middle">+ 目录</text>
+    <rect class="llm" x="1026" y="234" width="68" height="40" rx="9"/>
+    <text class="s" x="1060" y="252" text-anchor="middle">工单 N</text><text class="s" x="1060" y="267" text-anchor="middle">+ 目录</text>
+    <text class="s" x="979" y="296" text-anchor="middle">执行器之间不互发消息</text>
+  </g>
+
+  <!-- Axis rows -->
+  <g>
+    <!-- 触发 -->
+    <text class="ax" x="26" y="330">触发</text><text class="v" x="26" y="349">用户的一次提问 / 指令</text>
+    <text class="ax" x="304" y="330">触发</text><text class="v" x="304" y="349">父 Agent 的一次工具调用</text>
+    <text class="ax" x="582" y="330">触发</text><text class="v" x="582" y="349">用户 → Lead；队友互发消息</text>
+    <text class="ax" x="860" y="330">触发</text><text class="v" x="860" y="349">外部事件流，7×24 常驻</text>
+    <!-- 授权 -->
+    <text class="ax" x="26" y="390">授权</text><text class="v" x="26" y="409">隐式：谁开会话谁说了算</text>
+    <text class="ax" x="304" y="390">授权</text><text class="v" x="304" y="409">继承父会话的权限</text>
+    <text class="ax" x="582" y="390">授权</text><text class="v" x="582" y="409">只有 Lead 能建 / 停队友</text>
+    <text class="ax" x="860" y="390">授权</text><text class="v" x="860" y="409">代码 Gate + 不可变 Mandate</text>
+    <!-- 状态 -->
+    <text class="ax" x="26" y="450">状态</text><text class="v" x="26" y="469">上下文窗口（会被压缩）</text>
+    <text class="ax" x="304" y="450">状态</text><text class="v" x="304" y="469">父上下文 + 子会话日志</text>
+    <text class="ax" x="582" y="450">状态</text><text class="v" x="582" y="469">Lead 会话日志里的名册</text><text class="v" x="582" y="486">与任务板</text>
+    <text class="ax" x="860" y="450">状态</text><text class="v" x="860" y="469">会话之外的 SQLite 领域对象</text>
+    <!-- 执行 -->
+    <text class="ax" x="26" y="520">执行</text><text class="v" x="26" y="539">同一个循环，串行</text>
+    <text class="ax" x="304" y="520">执行</text><text class="v" x="304" y="539">子会话，结果回到父上下文</text>
+    <text class="ax" x="582" y="520">执行</text><text class="v" x="582" y="539">命名队友，共享工作目录</text>
+    <text class="ax" x="860" y="520">执行</text><text class="v" x="860" y="539">一工单 = 一会话 + 一 worktree</text>
+  </g>
+
+  <!-- Spectrum arrow -->
+  <path class="e" d="M560,604 L40,604"/>
+  <path class="e" d="M560,604 L1090,604"/>
+  <text class="v" x="40" y="628">协调靠 LLM 之间的对话与上下文</text>
+  <text class="v" x="1090" y="628" text-anchor="end">协调靠代码、数据库与领域规则</text>
+</svg>
